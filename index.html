@@ -6,6 +6,11 @@
 <title>Dennis WX — Northwoods Weather Command</title>
 <meta name="description" content="A live weather command center built for Dennis: forecasts, wind, and the Sled / Boat / Brine readiness indices.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M22 24a6 6 0 0 0 0-12 8 8 0 0 0-15.4-2.1A5.4 5.4 0 0 0 8 24Z' fill='%23fff'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#070b11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dennis WX">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
 <style>
 /* ============================================================
    Dennis WX — single-file prototype
@@ -50,6 +55,7 @@ body {
   font-family: var(--sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
 }
 a { color: var(--series-1); }
@@ -94,7 +100,7 @@ a { color: var(--series-1); }
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink);
-  font: 500 13px/1 var(--sans);
+  font: 500 16px/1 var(--sans);   /* 16px keeps iOS from zooming on focus */
   outline: none;
 }
 .search input:focus { border-color: var(--series-1); box-shadow: 0 0 0 3px rgba(57,135,229,.20); }
@@ -314,12 +320,33 @@ footer b { color: var(--ink-2); font-weight: 600; }
 @media (max-width: 900px) {
   .two { grid-template-columns: 1fr; }
   .days { grid-template-columns: repeat(4, 1fr); }
-  .search input { width: 148px; }
+  .search input { width: 168px; }
   .brand-sub { display: none; }
 }
+
+/* Phone: the forecast becomes a swipeable strip, and the search bar gets
+   its own full-width row so nothing is a cramped tap target. */
+@media (max-width: 640px) {
+  .days {
+    display: flex; gap: 8px;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px; scrollbar-width: none;
+  }
+  .days::-webkit-scrollbar { display: none; }
+  .day { flex: 0 0 106px; scroll-snap-align: start; }
+  .day:hover { transform: none; }
+  section { padding: 32px 0; }
+  .hero-in { padding: 32px 0 28px; }
+}
 @media (max-width: 560px) {
-  .days { grid-template-columns: repeat(2, 1fr); }
-  .topbar-in { height: auto; padding: 10px 0; flex-wrap: wrap; }
+  .topbar-in { height: auto; padding: 10px 0 12px; flex-wrap: wrap; gap: 10px; }
+  .search { order: 3; flex: 1 1 100%; }
+  .search input { width: 100%; }
+  #geo span { display: none; }
+  #geo { padding: 0 11px; }
+  .now { gap: 18px; }
+  .tiles { grid-template-columns: repeat(2, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ticker-move { animation: none; }
@@ -974,7 +1001,7 @@ function renderChart() {
     <line id="cross" x1="0" x2="0" y1="${M.t - 6}" y2="${base}" stroke="var(--series-1)"
           stroke-opacity=".5" style="display:none"/>
     <circle id="crossDot" r="5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2" style="display:none"/>
-    <rect id="hit" x="${M.l - slot / 2}" y="0" width="${W - M.l - M.r + slot}" height="${H}" fill="transparent"/>`;
+    <rect id="hit" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`;
 
   $("hourlyRange").textContent =
     `${round(Math.min(...temps))}° to ${round(Math.max(...temps))}${unitLabel()} · ` +
@@ -993,11 +1020,13 @@ function renderChart() {
     cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i));
     dot.setAttribute("cx", x(i)); dot.setAttribute("cy", y(temps[i]));
     tip.classList.add("on");
-    tip.style.left = (x(i) / W) * r.width + "px";
-    tip.style.top = (y(temps[i]) / H) * r.height + "px";
     $("tipT").textContent = hourLabel(h.t, true);
     $("tipTemp").textContent = `${round(temps[i])}${unitLabel()}`;
     $("tipP").textContent = `${h.pop}%`;
+    /* keep the card fully on screen at the ends of the axis */
+    const half = tip.offsetWidth / 2;
+    tip.style.left = clamp((x(i) / W) * r.width, half + 2, r.width - half - 2) + "px";
+    tip.style.top = Math.max(tip.offsetHeight * 0.2, (y(temps[i]) / H) * r.height) + "px";
   };
   const leave = () => {
     cross.style.display = dot.style.display = "none";
@@ -1005,8 +1034,11 @@ function renderChart() {
   };
   hit.addEventListener("mousemove", move);
   hit.addEventListener("mouseleave", leave);
-  hit.addEventListener("touchmove", (e) => { move(e); e.preventDefault(); }, { passive: false });
-  hit.addEventListener("touchend", leave);
+  /* Touch reads out on tap or drag, but never traps the page scroll —
+     the readout simply lingers for a moment after the finger lifts. */
+  hit.addEventListener("touchstart", move, { passive: true });
+  hit.addEventListener("touchmove", move, { passive: true });
+  hit.addEventListener("touchend", () => setTimeout(leave, 1800), { passive: true });
 }
 
 function renderCompass(d) {
