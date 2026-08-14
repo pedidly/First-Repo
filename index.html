@@ -1270,8 +1270,8 @@ async function load(place) {
     $("liveDot").classList.add("demo");
     $("liveTxt").textContent = "Demo data";
     $("banner").textContent =
-      "Couldn't reach the live weather feed, so this is a modeled demo day for " + place.name +
-      ". Everything on the page still works — reload with a connection for real observations.";
+      "The live weather feed isn't reachable from here, so Dennis WX is showing a modeled demo day for " +
+      place.name + ". Every feature works the same — open the page on a normal connection for real observations.";
     $("banner").classList.add("on");
   }
   renderAll();
