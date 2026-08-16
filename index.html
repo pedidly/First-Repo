@@ -296,6 +296,57 @@ section { padding: 40px 0; }
 .day .p { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
 .day .p.dry { color: var(--muted); }
 
+/* hourly strip */
+.hours-strip {
+  display: flex; gap: 8px;
+  overflow-x: auto; scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 10px;
+  scrollbar-color: rgba(255,255,255,.16) transparent;
+}
+.hours-strip:focus-visible { outline: 2px solid var(--series-1); outline-offset: 3px; border-radius: 12px; }
+.hours-strip::-webkit-scrollbar { height: 7px; }
+.hours-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 4px; }
+.hours-strip::-webkit-scrollbar-track { background: transparent; }
+.hr {
+  flex: 0 0 90px; scroll-snap-align: start;
+  padding: 11px 8px 12px; text-align: center; position: relative;
+}
+.hr.is-now {
+  border-color: rgba(57,135,229,.55);
+  background: linear-gradient(180deg, rgba(57,135,229,.16), rgba(57,135,229,0) 72%);
+}
+.hr .t { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hr.is-now .t { color: #86b6ef; font-weight: 700; }
+.hr .ic { width: 26px; height: 26px; margin: 8px auto 7px; display: block; }
+.hr .tv { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.hr .fl { font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+.pbar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.09); margin: 9px 5px 5px; }
+.pbar i { display: block; height: 100%; border-radius: 2px; background: var(--series-2); }
+.hr .pv { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+.hr .pv.dry { color: var(--muted); }
+.hr .wd { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 5px; }
+/* a slim card marks the change of day, so every hour card stays aligned */
+.dayline {
+  flex: 0 0 34px; scroll-snap-align: start;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(57,135,229,.10); border-color: rgba(57,135,229,.30);
+}
+.dayline span {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+  text-transform: uppercase; color: #b7d3f6;
+}
+.sun {
+  flex: 0 0 74px; scroll-snap-align: start;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  padding: 10px 6px; text-align: center;
+  background: rgba(237,161,0,.07); border-color: rgba(237,161,0,.24);
+}
+.sun svg { width: 22px; height: 22px; }
+.sun .t { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #e6c483; }
+.sun .v { font-size: 12.5px; font-weight: 600; }
+
 /* almanac */
 .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 14px; }
 .note { padding: 18px; }
@@ -484,6 +535,16 @@ footer b { color: var(--ink-2); font-weight: 600; }
     </div>
   </section>
 
+  <!-- ===================== HOURLY FORECAST ===================== -->
+  <section>
+    <div class="sec-head">
+      <h2>Hourly forecast</h2>
+      <p id="hourlySummary">Swipe for the next two days, hour by hour</p>
+    </div>
+    <div class="hours-strip" id="hourly" role="list" tabindex="0"
+         aria-label="Hour by hour forecast for the next 48 hours"></div>
+  </section>
+
   <!-- ===================== 7 DAY ===================== -->
   <section>
     <div class="sec-head">
@@ -611,7 +672,8 @@ function icon(kind, isDay = true) {
 const FIELDS = {
   current: "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code," +
            "cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m",
-  hourly:  "temperature_2m,precipitation_probability,weather_code,visibility",
+  hourly:  "temperature_2m,apparent_temperature,precipitation_probability,weather_code,visibility," +
+           "wind_speed_10m,wind_gusts_10m,is_day",
   daily:   "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max," +
            "snowfall_sum,wind_speed_10m_max,sunrise,sunset,uv_index_max"
 };
@@ -641,13 +703,17 @@ function normalize(j) {
   let i0 = h.time.findIndex((t) => t.slice(0, 13) >= nowISO);
   if (i0 < 0) i0 = 0;
   const hours = [];
-  for (let i = i0; i < Math.min(i0 + 24, h.time.length); i++) {
+  for (let i = i0; i < Math.min(i0 + 48, h.time.length); i++) {
     hours.push({
       t: h.time[i],
       temp: h.temperature_2m[i],
+      feels: h.apparent_temperature ? h.apparent_temperature[i] : h.temperature_2m[i],
       pop: h.precipitation_probability[i] ?? 0,
       code: h.weather_code[i],
-      vis: h.visibility ? h.visibility[i] : null
+      vis: h.visibility ? h.visibility[i] : null,
+      wind: h.wind_speed_10m ? h.wind_speed_10m[i] : null,
+      gust: h.wind_gusts_10m ? h.wind_gusts_10m[i] : null,
+      isDay: h.is_day ? !!h.is_day[i] : true
     });
   }
   const days = d.time.map((t, i) => ({
@@ -685,15 +751,19 @@ function demoData() {
   const iso = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:00`;
 
   const hours = [];
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 48; i++) {
     const dt = new Date(now.getTime() + i * 3600e3);
     const hr = dt.getHours();
     const diurnal = -Math.cos(((hr - 4) / 24) * 2 * Math.PI) * amp;
+    const temp = round(baseT + diurnal + Math.sin(i / 3.1) * 1.6, 1);
+    const wind = round(6 + Math.abs(Math.sin(i / 5.2)) * (winter ? 14 : 9), 0);
     hours.push({
-      t: iso(dt),
-      temp: round(baseT + diurnal + Math.sin(i / 3.1) * 1.6, 1),
+      t: iso(dt), temp,
+      feels: round(temp - (winter ? 9 + wind * 0.2 : -2), 1),
       pop: clamp(Math.round(38 + Math.sin(i / 2.6) * 34 + (winter ? 18 : -6)), 0, 100),
-      code, vis: winter ? 4200 : 21000
+      code, vis: winter ? 4200 : 21000,
+      wind, gust: round(wind * 1.7),
+      isDay: hr > (winter ? 8 : 6) && hr < (winter ? 17 : 21)
     });
   }
   const days = [];
@@ -712,10 +782,14 @@ function demoData() {
       uv: winter ? 1 : 6
     });
   }
-  const sunset = new Date(now); sunset.setHours(winter ? 17 : 21, winter ? 12 : 34, 0, 0);
-  const sunrise = new Date(now); sunrise.setHours(winter ? 8 : 6, 5, 0, 0);
-  days[0].sunset = iso(sunset); days[0].sunrise = iso(sunrise);
-  days.forEach((d, i) => { if (i) { d.sunset = iso(sunset); d.sunrise = iso(sunrise); } });
+  const isoM = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}` +
+                       `T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  days.forEach((day, i) => {
+    const dt = new Date(now.getTime() + i * 86400e3);
+    const rise = new Date(dt); rise.setHours(winter ? 8 : 6, 5, 0, 0);
+    const set  = new Date(dt); set.setHours(winter ? 17 : 21, winter ? 12 : 34, 0, 0);
+    day.sunrise = isoM(rise); day.sunset = isoM(set);
+  });
 
   return {
     now: {
@@ -821,6 +895,7 @@ function renderAll() {
   renderTiles(d);
   renderGauges(d);
   renderChart();
+  renderHourly(d);
   renderCompass(d);
   renderDays(d);
   renderAlmanac(d);
@@ -927,7 +1002,7 @@ function renderChart() {
   const H = 300;
   const M = { t: 26, r: 44, b: 62, l: 44 };
   const splitY = 196;                                  // temp plot bottom / precip top
-  const hours = d.hours;
+  const hours = d.hours.slice(0, 24);                  // the plot stays at 24 h; the strip carries 48
 
   const temps = hours.map((h) => (state.unit === "F" ? h.temp : toC(h.temp)));
   let lo = Math.min(...temps), hi = Math.max(...temps);
@@ -1039,6 +1114,65 @@ function renderChart() {
   hit.addEventListener("touchstart", move, { passive: true });
   hit.addEventListener("touchmove", move, { passive: true });
   hit.addEventListener("touchend", () => setTimeout(leave, 1800), { passive: true });
+}
+
+/* ---------- hourly strip: 48 hours with sunrise/sunset in sequence ---------- */
+function renderHourly(d) {
+  const items = d.hours.map((h, i) => ({ kind: "hour", time: new Date(h.t), h, i }));
+  if (!items.length) return;
+  const start = items[0].time, end = items[items.length - 1].time;
+
+  /* drop the sun events into the timeline where they actually fall */
+  d.days.forEach((day) => {
+    [["Sunrise", day.sunrise], ["Sunset", day.sunset]].forEach(([label, when]) => {
+      if (!when) return;
+      const t = new Date(when);
+      if (t > start && t < end) items.push({ kind: "sun", time: t, label });
+    });
+  });
+  items.sort((a, b) => a.time - b.time);
+
+  const sunIcon = (up) => `
+    <svg viewBox="0 0 24 24" fill="none" stroke="#eda100" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="14" r="3.4"/><path d="M12 6.4V3.2M5.6 14H3.4M20.6 14h-2.2M7.2 9.2 5.7 7.7M16.8 9.2l1.5-1.5"/>
+      <path d="M8.6 ${up ? "5.4 12 2l3.4 3.4" : "1.9 12 5.3l3.4-3.4"}"/>
+      <path d="M3.6 20.2h16.8"/>
+    </svg>`;
+
+  let lastDay = items[0].time.toDateString();
+  $("hourly").innerHTML = items.map((it) => {
+    if (it.kind === "sun") {
+      return `
+        <div class="card sun" role="listitem">
+          ${sunIcon(it.label === "Sunrise")}
+          <div class="t">${it.label}</div>
+          <div class="v">${timeOf(it.time)}</div>
+        </div>`;
+    }
+    const h = it.h, [label, kind] = decode(h.code);
+    const dayKey = it.time.toDateString();
+    const divider = dayKey !== lastDay
+      ? `<div class="card dayline" role="separator"><span>${dayLabel(h.t)}</span></div>` : "";
+    lastDay = dayKey;
+    return divider + `
+      <div class="card hr${it.i === 0 ? " is-now" : ""}" role="listitem"
+           title="${hourLabel(h.t, true)} — ${label}">
+        <div class="t">${it.i === 0 ? "Now" : hourLabel(h.t)}</div>
+        <span class="ic">${icon(kind, h.isDay)}</span>
+        <div class="tv">${showT(h.temp)}°</div>
+        <div class="fl">feels ${showT(h.feels)}°</div>
+        <div class="pbar"><i style="width:${clamp(h.pop, 0, 100)}%"></i></div>
+        <div class="pv${h.pop < 20 ? " dry" : ""}">${h.pop}%</div>
+        <div class="wd">${h.wind == null ? "—" : round(h.wind) + " mph"}</div>
+      </div>`;
+  }).join("");
+
+  /* headline the two extremes of the window rather than restating "48 hours" */
+  const warm = d.hours.reduce((a, b) => (b.temp > a.temp ? b : a));
+  const wet  = d.hours.reduce((a, b) => (b.pop > a.pop ? b : a));
+  $("hourlySummary").textContent =
+    `Next 48 hours · warmest ${showT(warm.temp)}${unitLabel()} at ${hourLabel(warm.t, true)}` +
+    (wet.pop >= 20 ? ` · wettest ${wet.pop}% at ${hourLabel(wet.t, true)}` : " · staying dry");
 }
 
 function renderCompass(d) {

@@ -16,6 +16,9 @@ and visit `http://localhost:8000`.
   - **Brine Index** (pickle integrity): humidity, dew point, and barometric steadiness. Yes, really.
 - **24-hour plot** — temperature line with a hover crosshair and per-hour readout, plus a
   chance-of-precipitation strip sharing the same time axis.
+- **Hourly forecast** — a swipeable 48-hour strip: conditions icon, temperature, feels-like,
+  chance of precipitation, and wind for every hour, with sunrise and sunset dropped into the
+  timeline where they fall and a slim divider at each change of day.
 - **Wind compass** — direction needle with a gust ring that grows with the gusts.
 - **Seven-day outlook** — highs, lows, a hi/lo range bar, precip chance, and snowfall totals.
 - **Dennis's almanac** — trail, ramp, and brine notes written from the live numbers.
