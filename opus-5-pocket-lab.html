@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Four interactive browser demos - a flow field, a live A* search, a temperature sampler and verlet cloth - written in one pass, no libraries.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E6A56'/%3E%3Cpath d='M8 22c4-12 12-12 16 0' stroke='%23F0F2EF' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='11' r='2.6' fill='%23F0F2EF'/%3E%3C/svg%3E">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}</style>
+<title>Opus 5 Pocket Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+/* ================================================================
+   Opus 5 Pocket Lab — one file, no libraries, no build step.
+   Palette: cool paper / deep pine ink, one pine accent, one ember
+   signal. Light is the base theme; dark redefines tokens only.
+   ================================================================ */
+:root{
+  --paper:#F0F2EF;
+  --paper-2:#E4E8E3;
+  --sunk:#DADFD8;
+  --ink:#15201C;
+  --ink-2:#43544E;
+  --muted:#7A8A84;
+  --accent:#0E6A56;
+  --accent-soft:rgba(14,106,86,.13);
+  --ember:#BC4E2A;
+  --line:rgba(21,32,28,.14);
+  --line-soft:rgba(21,32,28,.07);
+  --shadow:0 1px 2px rgba(21,32,28,.07);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C110F;
+    --paper-2:#141B18;
+    --sunk:#0F1614;
+    --ink:#E9EFEB;
+    --ink-2:#AEBDB7;
+    --muted:#7F918B;
+    --accent:#4FCBA6;
+    --accent-soft:rgba(79,203,166,.15);
+    --ember:#F08A5D;
+    --line:rgba(233,239,235,.14);
+    --line-soft:rgba(233,239,235,.07);
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C110F;
+  --paper-2:#141B18;
+  --sunk:#0F1614;
+  --ink:#E9EFEB;
+  --ink-2:#AEBDB7;
+  --muted:#7F918B;
+  --accent:#4FCBA6;
+  --accent-soft:rgba(79,203,166,.15);
+  --ember:#F08A5D;
+  --line:rgba(233,239,235,.14);
+  --line-soft:rgba(233,239,235,.07);
+  --shadow:none;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:17px;
+  line-height:1.55;
+  -webkit-text-size-adjust:100%;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{
+  max-width:36rem;
+  margin:0 auto;
+  padding:26px 20px 56px;
+  display:flex;
+  flex-direction:column;
+  gap:34px;
+}
+.mono{
+  font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+}
+
+/* ---------- masthead ---------- */
+.masthead{display:flex;flex-direction:column;gap:12px}
+.eyebrow{color:var(--accent);display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+@media (prefers-reduced-motion: no-preference){
+  .dot{animation:pulse 2.4s ease-in-out infinite}
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.72)}}
+h1{
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  font-weight:800;
+  font-size:clamp(2.3rem,11vw,3.1rem);
+  line-height:.98;
+  letter-spacing:-.025em;
+  margin:0;
+  text-wrap:balance;
+}
+h1 em{font-style:normal;color:var(--accent)}
+.deck{margin:0;color:var(--ink-2);font-size:1.02rem}
+.deck b{font-weight:600;color:var(--ink)}
+
+/* ---------- modules ---------- */
+.module{display:flex;flex-direction:column;gap:12px}
+.module-head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding-top:14px;border-top:1px solid var(--line);
+}
+.module-head .label{color:var(--accent)}
+.module-head .hint{color:var(--muted)}
+h2{
+  font-family:"Bricolage Grotesque",system-ui,sans-serif;
+  font-weight:600;font-size:1.42rem;line-height:1.12;letter-spacing:-.015em;
+  margin:0;
+}
+.note{margin:0;color:var(--ink-2);font-size:.97rem}
+.note code{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.85em;white-space:nowrap;
+  background:var(--accent-soft);color:var(--accent);padding:.1em .35em;border-radius:4px;
+}
+
+canvas{
+  display:block;width:100%;border-radius:12px;
+  background:var(--sunk);border:1px solid var(--line);
+  box-shadow:var(--shadow);
+}
+#field{aspect-ratio:5/4;touch-action:pan-y}
+#grid{aspect-ratio:3/2;touch-action:none;cursor:crosshair}
+#cloth{aspect-ratio:1/1;touch-action:none;cursor:grab}
+#cloth:active{cursor:grabbing}
+
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+  min-height:44px;padding:0 16px;
+  background:var(--paper-2);color:var(--ink);
+  border:1px solid var(--line);border-radius:999px;
+  cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease;
+}
+button:hover{border-color:var(--accent);color:var(--accent)}
+button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.readout{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--line-soft);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+}
+.readout div{background:var(--paper-2);padding:9px 12px;display:flex;flex-direction:column;gap:3px}
+.readout dt,.readout .k{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10px;
+  letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+}
+.readout .v{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:15px;font-weight:500;
+  font-variant-numeric:tabular-nums;color:var(--ink);
+}
+.readout .v.warn{color:var(--ember)}
+
+/* ---------- sampler ---------- */
+.slider-row{display:flex;align-items:center;gap:14px}
+.slider-row label{flex:none;color:var(--muted)}
+input[type="range"]{
+  flex:1;-webkit-appearance:none;appearance:none;background:transparent;height:44px;margin:0;
+}
+input[type="range"]::-webkit-slider-runnable-track{height:3px;background:var(--line);border-radius:2px}
+input[type="range"]::-moz-range-track{height:3px;background:var(--line);border-radius:2px}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:26px;height:26px;border-radius:50%;
+  background:var(--accent);border:3px solid var(--paper);margin-top:-11.5px;
+  box-shadow:0 0 0 1px var(--line);
+}
+input[type="range"]::-moz-range-thumb{
+  width:26px;height:26px;border-radius:50%;background:var(--accent);
+  border:3px solid var(--paper);box-shadow:0 0 0 1px var(--line);
+}
+.temp-val{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:15px;font-weight:500;
+  font-variant-numeric:tabular-nums;color:var(--accent);flex:none;min-width:2.6em;text-align:right;
+}
+#sample{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+  padding:16px 17px;min-height:8.6em;font-size:1.02rem;line-height:1.6;
+}
+#sample .seed{color:var(--muted)}
+#sample .cursor{
+  display:inline-block;width:.5em;height:1.05em;vertical-align:-.18em;
+  background:var(--accent);margin-left:1px;
+}
+@media (prefers-reduced-motion: no-preference){#sample .cursor{animation:blink 1s steps(2) infinite}}
+@keyframes blink{50%{opacity:0}}
+.dist{display:flex;flex-direction:column;gap:5px}
+.dist .row{display:grid;grid-template-columns:7.2em 1fr 3.2em;align-items:center;gap:9px}
+.dist .w{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;
+  color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.dist .bar{height:8px;background:var(--line-soft);border-radius:99px;overflow:hidden}
+.dist .bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s ease}
+.dist .row:first-of-type .bar i{background:var(--ember)}
+.dist-cap{color:var(--muted);margin-bottom:2px}
+.dist .p{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;
+  color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;
+}
+
+/* ---------- colophon ---------- */
+.colophon{
+  border-top:1px solid var(--line);padding-top:16px;
+  display:flex;flex-direction:column;gap:10px;color:var(--muted);font-size:.92rem;
+}
+.colophon .k{color:var(--accent)}
+.colophon p{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow mono"><span class="dot"></span>Everything here runs on your phone</div>
+    <h1>Opus 5 <em>Pocket&nbsp;Lab</em></h1>
+    <p class="deck"><b>Four working demos, written in a single pass.</b> No libraries, no build step, no network calls. Every pixel below is drawn by hand-written canvas code. Push them around with your thumb.</p>
+  </header>
+
+  <!-- 1 ------------------------------------------------------ -->
+  <section class="module">
+    <div class="module-head">
+      <span class="label mono">Motion</span>
+      <span class="hint mono">Drag across it</span>
+    </div>
+    <h2>A field of nine hundred drifting particles</h2>
+    <p class="note">Each one reads its heading from a value-noise field that slowly rotates, then leaves a fading trail. Your finger becomes a repeller.</p>
+    <canvas id="field" aria-label="Animated particle flow field that responds to touch"></canvas>
+  </section>
+
+  <!-- 2 ------------------------------------------------------ -->
+  <section class="module">
+    <div class="module-head">
+      <span class="label mono">Search</span>
+      <span class="hint mono">Paint walls</span>
+    </div>
+    <h2>A* re-planning while you draw</h2>
+    <p class="note">Drag to build walls between the two markers. The search restarts on every change: pale cells are expanded nodes, the ember line is the cheapest route found.</p>
+    <canvas id="grid" aria-label="Pathfinding grid you can draw walls on"></canvas>
+    <div class="readout">
+      <div><span class="k">Expanded</span><span class="v" id="k-exp">0</span></div>
+      <div><span class="k">Path cost</span><span class="v" id="k-len">0</span></div>
+      <div><span class="k">CPU time</span><span class="v" id="k-ms">0 ms</span></div>
+    </div>
+    <div class="controls">
+      <button id="g-maze" type="button">Scatter walls</button>
+      <button id="g-clear" type="button">Clear</button>
+    </div>
+  </section>
+
+  <!-- 3 ------------------------------------------------------ -->
+  <section class="module">
+    <div class="module-head">
+      <span class="label mono">Sampling</span>
+      <span class="hint mono">Move the slider</span>
+    </div>
+    <h2>What temperature actually does</h2>
+    <p class="note">A word-level Markov chain trained in your browser on the paragraph below it. Probabilities are reshaped by <code>p ∝ count^(1/T)</code> — the same knob a large model uses, on a very small brain.</p>
+    <div id="sample" aria-live="polite"></div>
+    <div class="slider-row">
+      <label class="mono" for="temp">Temp</label>
+      <input id="temp" type="range" min="10" max="180" value="80" step="1" aria-label="Sampling temperature">
+      <span class="temp-val" id="temp-val">0.80</span>
+    </div>
+    <div class="dist" id="dist" aria-label="Next-word distribution at the widest branch point"></div>
+    <div class="controls">
+      <button id="s-run" type="button">Sample again</button>
+    </div>
+  </section>
+
+  <!-- 4 ------------------------------------------------------ -->
+  <section class="module">
+    <div class="module-head">
+      <span class="label mono">Physics</span>
+      <span class="hint mono">Grab a thread</span>
+    </div>
+    <h2>Verlet cloth, pinned at the top</h2>
+    <p class="note">Positions integrate without stored velocity; the weave holds because every link is relaxed a few times per frame. Drag hard enough and the seams tear.</p>
+    <canvas id="cloth" aria-label="Draggable simulated cloth"></canvas>
+    <div class="controls">
+      <button id="c-wind" type="button" aria-pressed="false">Wind</button>
+      <button id="c-reset" type="button">Re-weave</button>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <p><span class="k mono">Colophon</span></p>
+    <p>One HTML file: markup, CSS and JavaScript together. The flow field, the grid, the sampler and the cloth are each a few dozen lines of plain canvas drawing — no chart library, no physics engine, no framework.</p>
+    <p>Nothing on this page talks to a server. Reload for a different scatter of walls and a different sample.</p>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- shared plumbing ---------- */
+var REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var C = readTokens();
+function readTokens(){
+  var s = getComputedStyle(document.documentElement);
+  function g(n){ return s.getPropertyValue(n).trim(); }
+  return { paper:g("--paper"), paper2:g("--paper-2"), sunk:g("--sunk"), ink:g("--ink"),
+           ink2:g("--ink-2"), muted:g("--muted"), accent:g("--accent"), ember:g("--ember"),
+           line:g("--line") };
+}
+function onThemeChange(){ C = readTokens(); repaintAll(); }
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", onThemeChange);
+new MutationObserver(onThemeChange).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+var repaints = [];
+function repaintAll(){ repaints.forEach(function(f){ f(); }); }
+
+function fit(cv){
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  var w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  var ctx = cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return { ctx:ctx, w:w, h:h };
+}
+function local(cv, ev){
+  var r = cv.getBoundingClientRect();
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+
+/* one shared frame loop; each canvas ticks only while on screen */
+var loops = [];
+var io = new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    for (var i=0;i<loops.length;i++) if (loops[i].el === e.target) loops[i].on = e.isIntersecting;
+  });
+}, { rootMargin: "120px" });
+function loop(el, fn){ var o = {el:el, fn:fn, on:true}; loops.push(o); io.observe(el); }
+(function frame(t){
+  for (var i=0;i<loops.length;i++) if (loops[i].on) loops[i].fn(t);
+  requestAnimationFrame(frame);
+})(0);
+
+var resizers = [];
+var rt;
+window.addEventListener("resize", function(){
+  clearTimeout(rt);
+  rt = setTimeout(function(){ resizers.forEach(function(f){ f(); }); }, 160);
+});
+
+/* ================================================================
+   1. FLOW FIELD
+   ================================================================ */
+(function(){
+  var cv = document.getElementById("field");
+  var d = fit(cv), ctx = d.ctx, W = d.w, H = d.h;
+  var N = 900, px = new Float32Array(N), py = new Float32Array(N),
+      vx = new Float32Array(N), vy = new Float32Array(N), life = new Float32Array(N);
+  var pointer = { x:-999, y:-999, on:false };
+  var seed = new Float32Array(4096);
+  for (var s=0;s<4096;s++) seed[s] = Math.random()*Math.PI*2;
+
+  function noise(x, y, t){          /* value noise on a 64x64 lattice, bilinear */
+    var xi = Math.floor(x), yi = Math.floor(y), xf = x-xi, yf = y-yi;
+    var u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+    function at(a,b){ return seed[(((a&63)<<6) | (b&63))]; }
+    var a = at(xi,yi)+t, b = at(xi+1,yi)+t, c = at(xi,yi+1)+t, e = at(xi+1,yi+1)+t;
+    return (a*(1-u)+b*u)*(1-v) + (c*(1-u)+e*u)*v;
+  }
+  function respawn(i){
+    px[i] = Math.random()*W; py[i] = Math.random()*H;
+    vx[i] = 0; vy[i] = 0; life[i] = 60 + Math.random()*200;
+  }
+  function reset(){
+    d = fit(cv); ctx = d.ctx; W = d.w; H = d.h;
+    ctx.fillStyle = C.sunk; ctx.fillRect(0,0,W,H);
+    for (var i=0;i<N;i++) respawn(i);
+  }
+  reset();
+
+  var tt = 0;
+  function step(){
+    tt += 0.0022;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = C.sunk;
+    ctx.globalAlpha = 0.13;
+    ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha = 1;
+
+    var scale = 1/46;
+    for (var i=0;i<N;i++){
+      var ang = noise(px[i]*scale, py[i]*scale, tt) * 1.9;
+      var ax = Math.cos(ang)*0.085, ay = Math.sin(ang)*0.085;
+      if (pointer.on){
+        var dx = px[i]-pointer.x, dy = py[i]-pointer.y;
+        var d2 = dx*dx + dy*dy;
+        if (d2 < 12000 && d2 > 0.5){
+          var f = 24/d2;
+          ax += dx*f; ay += dy*f;
+        }
+      }
+      vx[i] = (vx[i]+ax)*0.965; vy[i] = (vy[i]+ay)*0.965;
+      var nx = px[i]+vx[i], ny = py[i]+vy[i];
+      var far = (nx<-4||nx>W+4||ny<-4||ny>H+4);
+      if (!far){
+        ctx.strokeStyle = (i%9===0) ? C.ember : C.accent;
+        ctx.globalAlpha = (i%9===0) ? 0.55 : 0.30;
+        ctx.lineWidth = (i%9===0) ? 1.3 : 0.9;
+        ctx.beginPath(); ctx.moveTo(px[i],py[i]); ctx.lineTo(nx,ny); ctx.stroke();
+      }
+      px[i] = nx; py[i] = ny;
+      if (far || --life[i] < 0) respawn(i);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (REDUCED){ for (var k=0;k<420;k++) step(); }
+  else loop(cv, step);
+
+  cv.addEventListener("pointermove", function(e){
+    var p = local(cv,e); pointer.x = p.x; pointer.y = p.y; pointer.on = true;
+  });
+  cv.addEventListener("pointerleave", function(){ pointer.on = false; });
+  cv.addEventListener("pointercancel", function(){ pointer.on = false; });
+  resizers.push(reset);
+  repaints.push(function(){ ctx.fillStyle = C.sunk; ctx.fillRect(0,0,W,H); });
+})();
+
+/* ================================================================
+   2. A* PATHFINDER
+   ================================================================ */
+(function(){
+  var cv = document.getElementById("grid");
+  var kExp = document.getElementById("k-exp"), kLen = document.getElementById("k-len"), kMs = document.getElementById("k-ms");
+  var d, ctx, W, H, cols, rows, cell, wall, start, goal;
+  var open, g, came, closed, done, found, expanded, t0, ms;
+
+  function build(keep){
+    d = fit(cv); ctx = d.ctx; W = d.w; H = d.h;
+    cols = Math.max(14, Math.round(W/17));
+    cell = W/cols;
+    rows = Math.max(8, Math.floor(H/cell));
+    cell = Math.min(cell, H/rows);
+    var old = wall, oldc = cols;
+    wall = new Uint8Array(cols*rows);
+    if (keep && old && old.length === wall.length && oldc === cols) wall = old;
+    start = idx(1, (rows>>1));
+    goal  = idx(cols-2, (rows>>1));
+    wall[start] = 0; wall[goal] = 0;
+    restart();
+  }
+  function idx(x,y){ return y*cols + x; }
+  function xOf(i){ return i % cols; }
+  function yOf(i){ return (i / cols) | 0; }
+  function hCost(i){ return Math.abs(xOf(i)-xOf(goal)) + Math.abs(yOf(i)-yOf(goal)); }
+
+  function restart(){
+    open = [start];
+    g = new Float64Array(cols*rows).fill(Infinity);
+    g[start] = 0;
+    came = new Int32Array(cols*rows).fill(-1);
+    closed = new Uint8Array(cols*rows);
+    done = false; found = false; expanded = 0; ms = 0;
+  }
+
+  function search(budget){
+    var steps = 0;
+    t0 = performance.now();
+    while (open.length && steps < budget){
+      steps++;
+      var bi = 0, bf = Infinity;
+      for (var i=0;i<open.length;i++){
+        var f = g[open[i]] + hCost(open[i]);
+        if (f < bf){ bf = f; bi = i; }
+      }
+      var cur = open.splice(bi,1)[0];
+      if (closed[cur]) continue;
+      closed[cur] = 1; expanded++;
+      if (cur === goal){ done = true; found = true; ms += performance.now()-t0; return; }
+      var cx = xOf(cur), cy = yOf(cur);
+      var dxs = [1,-1,0,0], dys = [0,0,1,-1];
+      for (var k=0;k<4;k++){
+        var nx = cx+dxs[k], ny = cy+dys[k];
+        if (nx<0||ny<0||nx>=cols||ny>=rows) continue;
+        var ni = idx(nx,ny);
+        if (wall[ni] || closed[ni]) continue;
+        var ng = g[cur] + 1;
+        if (ng < g[ni]){ g[ni] = ng; came[ni] = cur; open.push(ni); }
+      }
+    }
+    ms += performance.now()-t0;
+    if (!open.length){ done = true; found = false; }
+  }
+
+  function draw(){
+    ctx.fillStyle = C.sunk; ctx.fillRect(0,0,W,H);
+    var ox = (W - cols*cell)/2, oy = (H - rows*cell)/2;
+    for (var i=0;i<wall.length;i++){
+      var x = ox + xOf(i)*cell, y = oy + yOf(i)*cell;
+      if (wall[i]){
+        ctx.fillStyle = C.ink; ctx.globalAlpha = 0.82;
+        ctx.fillRect(x+0.5, y+0.5, cell-1, cell-1);
+        ctx.globalAlpha = 1;
+      } else if (closed[i]){
+        ctx.fillStyle = C.accent; ctx.globalAlpha = 0.16;
+        ctx.fillRect(x+0.5, y+0.5, cell-1, cell-1);
+        ctx.globalAlpha = 1;
+      }
+    }
+    ctx.strokeStyle = C.accent; ctx.globalAlpha = 0.5; ctx.lineWidth = 1;
+    for (var o=0;o<open.length;o++){
+      var oi = open[o];
+      ctx.strokeRect(ox + xOf(oi)*cell + 1, oy + yOf(oi)*cell + 1, cell-2, cell-2);
+    }
+    ctx.globalAlpha = 1;
+
+    var cost = 0;
+    if (found){
+      var path = [], n = goal, guard = 0;
+      while (n !== -1 && guard++ < 100000){ path.push(n); n = came[n]; }
+      cost = path.length - 1;
+      ctx.strokeStyle = C.ember;
+      ctx.lineWidth = Math.max(2.5, cell*0.42);
+      ctx.lineJoin = "round"; ctx.lineCap = "round";
+      ctx.beginPath();
+      for (var p=0;p<path.length;p++){
+        var px2 = ox + xOf(path[p])*cell + cell/2, py2 = oy + yOf(path[p])*cell + cell/2;
+        if (p===0) ctx.moveTo(px2,py2); else ctx.lineTo(px2,py2);
+      }
+      ctx.stroke();
+    }
+    [[start,C.accent],[goal,C.ember]].forEach(function(pair){
+      var i2 = pair[0];
+      ctx.fillStyle = pair[1];
+      ctx.beginPath();
+      ctx.arc(ox + xOf(i2)*cell + cell/2, oy + yOf(i2)*cell + cell/2, Math.max(3, cell*0.34), 0, 6.2832);
+      ctx.fill();
+    });
+
+    kExp.textContent = expanded;
+    kLen.textContent = done ? (found ? cost : "—") : "…";
+    kLen.className = "v" + (done && !found ? " warn" : "");
+    kMs.textContent = ms.toFixed(2) + " ms";
+  }
+
+  build(false);
+  scatter();
+
+  function tick(){
+    if (!done) search(REDUCED ? 4000 : 26);
+    draw();
+  }
+  loop(cv, tick);
+
+  /* painting walls */
+  var painting = false, paintVal = 1;
+  function cellAt(e){
+    var p = local(cv, e);
+    var ox = (W - cols*cell)/2, oy = (H - rows*cell)/2;
+    var x = Math.floor((p.x-ox)/cell), y = Math.floor((p.y-oy)/cell);
+    if (x<0||y<0||x>=cols||y>=rows) return -1;
+    return idx(x,y);
+  }
+  cv.addEventListener("pointerdown", function(e){
+    var i = cellAt(e); if (i<0) return;
+    cv.setPointerCapture(e.pointerId);
+    painting = true; paintVal = wall[i] ? 0 : 1;
+    paint(i);
+  });
+  cv.addEventListener("pointermove", function(e){
+    if (!painting) return;
+    var i = cellAt(e); if (i>=0) paint(i);
+  });
+  ["pointerup","pointercancel"].forEach(function(t){
+    cv.addEventListener(t, function(){ painting = false; });
+  });
+  function paint(i){
+    if (i === start || i === goal || wall[i] === paintVal) return;
+    wall[i] = paintVal; restart();
+  }
+  function scatter(){
+    for (var i=0;i<wall.length;i++){
+      wall[i] = (Math.random() < 0.27 && i !== start && i !== goal) ? 1 : 0;
+    }
+    wall[start] = 0; wall[goal] = 0;
+    restart();
+  }
+  document.getElementById("g-maze").addEventListener("click", scatter);
+  document.getElementById("g-clear").addEventListener("click", function(){
+    wall.fill(0); restart();
+  });
+  resizers.push(function(){ build(true); });
+  repaints.push(draw);
+})();
+
+/* ================================================================
+   3. TEMPERATURE / MARKOV SAMPLER
+   ================================================================ */
+(function(){
+  var CORPUS =
+    "A language model is a machine that guesses the next word. It reads what came before, " +
+    "weighs every word it knows, and picks one. Then it reads what came before again, " +
+    "weighs every word it knows again, and picks another one. Nothing else happens. " +
+    "Temperature is the dial on that guess. At a low temperature the model picks the safest " +
+    "word almost every time, and the sentence it writes is flat, correct, and a little dull. " +
+    "At a high temperature the unlikely word gets a real chance, and the sentence wanders " +
+    "somewhere stranger, sometimes better, often broken. The dial does not make the model " +
+    "smarter or dumber. It only reshapes the guess it was already going to make. " +
+    "This little machine knows one paragraph and remembers two words at a time, so it is a " +
+    "very small brain with a very short memory. A large model knows far more than one " +
+    "paragraph and remembers far more than two words, but the shape of the guess is the same " +
+    "shape, and the dial is the same dial. Watch the bars move as you turn it: the safest " +
+    "word keeps its lead at a low temperature, and the rest of the words crowd in as the " +
+    "temperature climbs. That crowding is every surprise a model has ever written.";
+
+  var words = CORPUS.replace(/\s+/g," ").trim().split(" ");
+  var model = {};
+  for (var i=0;i<words.length-2;i++){
+    var key = (words[i] + " " + words[i+1]).toLowerCase();
+    (model[key] || (model[key] = {}))[words[i+2]] = ((model[key]||{})[words[i+2]] || 0) + 1;
+  }
+  var starts = [];
+  for (var j=0;j<words.length-2;j++){
+    if (/^[A-Z]/.test(words[j])) starts.push(j);
+  }
+
+  var out = document.getElementById("sample");
+  var dist = document.getElementById("dist");
+  var slider = document.getElementById("temp");
+  var tempVal = document.getElementById("temp-val");
+  var timer = null;
+
+  function candidates(key, T){
+    var opts = model[key];
+    if (!opts) return null;
+    var ws = Object.keys(opts), ps = [], sum = 0;
+    for (var i=0;i<ws.length;i++){
+      var p = Math.pow(opts[ws[i]], 1/T);
+      ps.push(p); sum += p;
+    }
+    for (var k=0;k<ps.length;k++) ps[k] /= sum;
+    var order = ws.map(function(w,ix){ return {w:w, p:ps[ix]}; })
+                  .sort(function(a,b){ return b.p - a.p; });
+    return order;
+  }
+
+  function generate(){
+    var T = parseInt(slider.value,10)/100;
+    var s = starts[(Math.random()*starts.length)|0];
+    var seq = [words[s], words[s+1]];
+    var best = null;
+    for (var n=0;n<46;n++){
+      var key = (seq[seq.length-2] + " " + seq[seq.length-1]).toLowerCase();
+      var order = candidates(key, T);
+      if (!order){                       /* dead end: hop to another opening */
+        var j = starts[(Math.random()*starts.length)|0];
+        seq.push(words[j], words[j+1]);
+        continue;
+      }
+      if (!best || order.length > best.order.length){
+        best = { order: order, ctx: seq[seq.length-2] + " " + seq[seq.length-1] };
+      }
+      var r = Math.random(), acc = 0, pick = order[order.length-1].w;
+      for (var i=0;i<order.length;i++){ acc += order[i].p; if (r <= acc){ pick = order[i].w; break; } }
+      seq.push(pick);
+    }
+    render(seq, best);
+  }
+
+  function render(seq, best){
+    clearTimeout(timer);
+    var seed = seq.slice(0,2).join(" ");
+    var rest = seq.slice(2);
+    var shown = 0;
+    function step(){
+      var text = rest.slice(0, shown).join(" ");
+      out.innerHTML = '<span class="seed">' + esc(seed) + '</span> ' + esc(text) + '<span class="cursor"></span>';
+      if (shown < rest.length){ shown++; timer = setTimeout(step, REDUCED ? 0 : 34); }
+      else out.innerHTML = '<span class="seed">' + esc(seed) + '</span> ' + esc(text);
+    }
+    if (REDUCED){ shown = rest.length; step(); } else step();
+
+    dist.innerHTML = "";
+    if (!best) return;
+    var cap = document.createElement("div");
+    cap.className = "dist-cap mono";
+    cap.textContent = 'Widest choice this run \u2014 after \u201c' + best.ctx + '\u201d';
+    dist.appendChild(cap);
+    var top = best.order.slice(0,5), max = top[0].p;
+    top.forEach(function(o){
+      var row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = '<span class="w">' + esc(o.w) + '</span>' +
+                      '<span class="bar"><i style="width:' + (100*o.p/max).toFixed(1) + '%"></i></span>' +
+                      '<span class="p">' + (o.p*100).toFixed(0) + '%</span>';
+      dist.appendChild(row);
+    });
+  }
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  slider.addEventListener("input", function(){
+    tempVal.textContent = (parseInt(slider.value,10)/100).toFixed(2);
+  });
+  slider.addEventListener("change", generate);
+  document.getElementById("s-run").addEventListener("click", generate);
+  tempVal.textContent = (parseInt(slider.value,10)/100).toFixed(2);
+  generate();
+})();
+
+/* ================================================================
+   4. VERLET CLOTH
+   ================================================================ */
+(function(){
+  var cv = document.getElementById("cloth");
+  var d, ctx, W, H, pts, links, wind = false, gust = 0;
+  var COLS = 15, ROWS = 15;
+
+  function build(){
+    d = fit(cv); ctx = d.ctx; W = d.w; H = d.h;
+    var m = Math.min(W,H) * 0.11;
+    var sx = (W - 2*m)/(COLS-1), sy = (H - 2*m)/(ROWS-1) * 0.86;
+    pts = []; links = [];
+    for (var y=0;y<ROWS;y++){
+      for (var x=0;x<COLS;x++){
+        var px = m + x*sx, py = m*0.7 + y*sy;
+        pts.push({ x:px, y:py, ox:px, oy:py, pin: (y===0 && x%3===0) });
+      }
+    }
+    for (var y2=0;y2<ROWS;y2++){
+      for (var x2=0;x2<COLS;x2++){
+        var i = y2*COLS + x2;
+        if (x2 < COLS-1) links.push({ a:i, b:i+1, d:sx, live:true });
+        if (y2 < ROWS-1) links.push({ a:i, b:i+COLS, d:sy, live:true });
+      }
+    }
+  }
+  build();
+
+  var drag = null;
+  function step(){
+    var g = 0.32;
+    gust = wind ? gust + 0.035 : 0;
+    var w = wind ? Math.sin(gust)*0.42 + Math.sin(gust*2.7)*0.22 : 0;
+    for (var i=0;i<pts.length;i++){
+      var p = pts[i];
+      if (p.pin || (drag && drag.i === i)) continue;
+      var vx = (p.x - p.ox) * 0.985, vy = (p.y - p.oy) * 0.985;
+      p.ox = p.x; p.oy = p.y;
+      p.x += vx + w; p.y += vy + g;
+    }
+    for (var it=0; it<4; it++){
+      for (var l=0;l<links.length;l++){
+        var L = links[l]; if (!L.live) continue;
+        var a = pts[L.a], b = pts[L.b];
+        var dx = b.x-a.x, dy = b.y-a.y;
+        var dist = Math.sqrt(dx*dx+dy*dy) || 0.0001;
+        if (dist > L.d * 4.2){ L.live = false; continue; }
+        var diff = (dist - L.d) / dist * 0.5;
+        var ox2 = dx*diff, oy2 = dy*diff;
+        if (!a.pin && !(drag && drag.i===L.a)){ a.x += ox2; a.y += oy2; }
+        if (!b.pin && !(drag && drag.i===L.b)){ b.x -= ox2; b.y -= oy2; }
+      }
+    }
+    for (var q=0;q<pts.length;q++){
+      var pt = pts[q];
+      if (pt.y > H-2){ pt.y = H-2; }
+      if (pt.x < 1) pt.x = 1;
+      if (pt.x > W-1) pt.x = W-1;
+    }
+    draw();
+  }
+
+  function draw(){
+    ctx.fillStyle = C.sunk; ctx.fillRect(0,0,W,H);
+    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = C.accent;
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    for (var l=0;l<links.length;l++){
+      var L = links[l]; if (!L.live) continue;
+      ctx.moveTo(pts[L.a].x, pts[L.a].y);
+      ctx.lineTo(pts[L.b].x, pts[L.b].y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = C.ember;
+    for (var i=0;i<pts.length;i++){
+      if (!pts[i].pin) continue;
+      ctx.beginPath(); ctx.arc(pts[i].x, pts[i].y, 3.2, 0, 6.2832); ctx.fill();
+    }
+    if (drag){
+      ctx.strokeStyle = C.ember; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(pts[drag.i].x, pts[drag.i].y, 9, 0, 6.2832); ctx.stroke();
+    }
+  }
+
+  loop(cv, step);
+
+  function nearest(p){
+    var best = -1, bd = 900;
+    for (var i=0;i<pts.length;i++){
+      var dx = pts[i].x-p.x, dy = pts[i].y-p.y, d2 = dx*dx+dy*dy;
+      if (d2 < bd){ bd = d2; best = i; }
+    }
+    return best;
+  }
+  cv.addEventListener("pointerdown", function(e){
+    var p = local(cv,e), i = nearest(p);
+    if (i < 0) return;
+    cv.setPointerCapture(e.pointerId);
+    drag = { i:i };
+    pts[i].x = p.x; pts[i].y = p.y; pts[i].ox = p.x; pts[i].oy = p.y;
+  });
+  cv.addEventListener("pointermove", function(e){
+    if (!drag) return;
+    var p = local(cv,e);
+    pts[drag.i].x = p.x; pts[drag.i].y = p.y;
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(function(t){
+    cv.addEventListener(t, function(){
+      if (drag){ pts[drag.i].ox = pts[drag.i].x; pts[drag.i].oy = pts[drag.i].y; }
+      drag = null;
+    });
+  });
+
+  var windBtn = document.getElementById("c-wind");
+  windBtn.addEventListener("click", function(){
+    wind = !wind;
+    windBtn.setAttribute("aria-pressed", wind ? "true" : "false");
+  });
+  document.getElementById("c-reset").addEventListener("click", build);
+  resizers.push(build);
+  repaints.push(draw);
+})();
+
+})();
+</script>
+
+</body>
+</html>
