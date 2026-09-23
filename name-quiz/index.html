@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Know Their Names</title>
+<meta name="description" content="A private flashcard and quiz app that helps youth leaders learn every student's name from their photo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e0663a'/%3E%3Ccircle cx='16' cy='12.5' r='5' fill='%23fff'/%3E%3Cpath d='M6.5 26c1.4-5 5-7.5 9.5-7.5s8.1 2.5 9.5 7.5Z' fill='%23fff'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#fbf7f2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Names">
+<style>
+/* ============================================================
+   Know Their Names — single-file app
+   All data lives in this browser (IndexedDB). Nothing is uploaded.
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --plane:     #fbf7f2;
+  --surface:   #ffffff;
+  --surface-2: #f4eee6;
+  --line:      #e6ddd1;
+  --ink:       #231d17;
+  --ink-2:     #5b5147;
+  --muted:     #867a6e;
+  --accent:    #c4502a;
+  --accent-ink:#ffffff;
+  --accent-soft:#fbe6dc;
+  --good:      #1f7a4d;
+  --good-soft: #dcf1e5;
+  --bad:       #b3261e;
+  --bad-soft:  #fbe0de;
+  --shadow:    0 1px 2px rgba(35,29,23,.06), 0 6px 20px rgba(35,29,23,.07);
+  --radius:    16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane:     #16130f;
+    --surface:   #211c17;
+    --surface-2: #2b251f;
+    --line:      #3a322a;
+    --ink:       #f6efe7;
+    --ink-2:     #cbbfb2;
+    --muted:     #9c8f82;
+    --accent:    #ee8a62;
+    --accent-ink:#1b120d;
+    --accent-soft:#3f2a20;
+    --good:      #6fd39c;
+    --good-soft: #1d3527;
+    --bad:       #f2877f;
+    --bad-soft:  #3d2220;
+    --shadow:    0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:     #16130f;
+  --surface:   #211c17;
+  --surface-2: #2b251f;
+  --line:      #3a322a;
+  --ink:       #f6efe7;
+  --ink-2:     #cbbfb2;
+  --muted:     #9c8f82;
+  --accent:    #ee8a62;
+  --accent-ink:#1b120d;
+  --accent-soft:#3f2a20;
+  --good:      #6fd39c;
+  --good-soft: #1d3527;
+  --bad:       #f2877f;
+  --bad-soft:  #3d2220;
+  --shadow:    0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--plane);
+  color: var(--ink);
+  font: 16px/1.45 ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img { display: block; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+.hidden { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- header ---------- */
+header.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top)) 0 10px;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+.brand-mark { width: 32px; height: 32px; border-radius: 10px; background: var(--accent); display: grid; place-items: center; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--surface); display: grid; place-items: center;
+}
+.icon-btn svg { width: 20px; height: 20px; }
+
+/* ---------- bottom tabs ---------- */
+nav.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+nav.tabs .wrap { display: grid; grid-template-columns: repeat(3, 1fr); }
+nav.tabs button {
+  background: none; border: 0; padding: 10px 0 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+nav.tabs button svg { width: 24px; height: 24px; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); }
+
+/* ---------- common ---------- */
+h1 { font-size: 26px; line-height: 1.15; letter-spacing: -.02em; margin: 8px 0 4px; }
+h2 { font-size: 18px; margin: 0 0 8px; }
+p.sub { color: var(--ink-2); margin: 0 0 18px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 16px;
+}
+.stack > * + * { margin-top: 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 12px;
+  padding: 11px 16px; font-weight: 600; min-height: 46px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn svg { width: 18px; height: 18px; }
+label.field { display: block; }
+label.field span { display: block; font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 5px; }
+input[type=text], select {
+  width: 100%; min-height: 46px; padding: 10px 12px;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+}
+input[type=text]:focus, select:focus, .btn:focus-visible, button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px;
+}
+.pill {
+  display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: var(--surface-2); color: var(--ink-2);
+}
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+/* ---------- home / progress ---------- */
+.progress-card { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.ring { width: 84px; height: 84px; }
+.ring text { font-weight: 700; font-size: 20px; fill: var(--ink); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.modes { display: grid; gap: 10px; }
+.mode {
+  display: grid; grid-template-columns: 48px 1fr auto; gap: 14px; align-items: center; text-align: left;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; box-shadow: var(--shadow);
+}
+.mode .ic { width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.mode .ic svg { width: 26px; height: 26px; }
+.mode b { display: block; font-size: 16px; }
+.mode small { color: var(--muted); font-size: 13px; }
+.mode .chev { color: var(--muted); }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ---------- empty state ---------- */
+.empty { text-align: center; padding: 28px 18px; }
+.empty .art { width: 96px; height: 96px; margin: 0 auto 12px; border-radius: 28px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.empty .art svg { width: 52px; height: 52px; }
+
+/* ---------- quiz ---------- */
+.qbar { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+.qbar .track { flex: 1; height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.qbar .fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s ease; }
+.qbar .count { font-size: 13px; font-weight: 600; color: var(--ink-2); min-width: 44px; text-align: right; }
+.photo {
+  width: 100%; aspect-ratio: 4 / 5; max-height: 52vh; object-fit: cover; object-position: center 30%;
+  border-radius: var(--radius); background: var(--surface-2); box-shadow: var(--shadow);
+}
+.photo-wrap { position: relative; max-width: 380px; margin: 0 auto; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.choice {
+  min-height: 56px; padding: 10px 12px; border-radius: 14px; border: 1.5px solid var(--line);
+  background: var(--surface); font-weight: 600; font-size: 16px; text-align: center; line-height: 1.2;
+}
+.choice.right { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+.choice.wrong { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.faces { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.face {
+  padding: 0; border: 3px solid transparent; border-radius: 18px; background: none; overflow: hidden; position: relative;
+}
+.face img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: center 30%; background: var(--surface-2); }
+.face.right { border-color: var(--good); }
+.face.wrong { border-color: var(--bad); }
+.face .tag {
+  position: absolute; left: 6px; right: 6px; bottom: 6px; padding: 4px 6px; border-radius: 8px;
+  background: rgba(0,0,0,.62); color: #fff; font-size: 13px; font-weight: 600; text-align: center;
+}
+.prompt-name { text-align: center; font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 10px 0 2px; }
+.feedback {
+  margin-top: 14px; padding: 12px 14px; border-radius: 14px; font-weight: 600;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.feedback.good { background: var(--good-soft); color: var(--good); }
+.feedback.bad { background: var(--bad-soft); color: var(--bad); }
+.feedback .btn { min-height: 40px; padding: 8px 14px; }
+.type-row { display: flex; gap: 8px; margin-top: 14px; }
+.type-row input { flex: 1; font-size: 18px; }
+
+/* ---------- flashcards ---------- */
+.flash { perspective: 1200px; max-width: 380px; margin: 0 auto; }
+.flash-inner { position: relative; transition: transform .45s cubic-bezier(.2,.7,.2,1); transform-style: preserve-3d; }
+.flash.flipped .flash-inner { transform: rotateY(180deg); }
+.flash-face { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flash-back {
+  position: absolute; inset: 0; transform: rotateY(180deg); border-radius: var(--radius); overflow: hidden;
+}
+.flash-back img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.flash-back .name-band {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 18px; text-align: center;
+  background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff;
+}
+.flash-back .name-band b { display: block; font-size: 28px; letter-spacing: -.01em; }
+.flash-back .name-band span { font-size: 14px; opacity: .85; }
+.hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+/* ---------- results ---------- */
+.score-big { font-size: 56px; font-weight: 800; letter-spacing: -.03em; text-align: center; line-height: 1; margin: 10px 0 4px; }
+.missed { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.missed figure { margin: 0; }
+.missed img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: center 30%; border-radius: 12px; background: var(--surface-2); }
+.missed figcaption { font-size: 13px; font-weight: 600; text-align: center; margin-top: 4px; line-height: 1.2; }
+
+/* ---------- roster ---------- */
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar input { flex: 1 1 180px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px; }
+.kid {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  padding: 0; text-align: left; box-shadow: var(--shadow);
+}
+.kid img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: center 30%; background: var(--surface-2); }
+.kid .meta { padding: 7px 8px 9px; }
+.kid .meta b { display: block; font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kid .dots { display: flex; gap: 3px; margin-top: 5px; }
+.kid .dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); }
+.kid .dots i.on { background: var(--good); }
+.section-title { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 0 10px; }
+.section-title h2 { margin: 0; }
+
+/* ---------- dialogs ---------- */
+dialog {
+  border: 0; padding: 0; border-radius: 20px; background: var(--surface); color: var(--ink);
+  width: min(520px, calc(100vw - 24px)); max-height: calc(100vh - 32px); box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+dialog::backdrop { background: rgba(20,15,10,.5); }
+.dlg { padding: 18px; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.dlg-head h2 { margin: 0; }
+.edit-photo {
+  width: 140px; aspect-ratio: 4/5; border-radius: 14px; overflow: hidden; background: var(--surface-2);
+  margin: 0 auto 12px; position: relative; display: grid; place-items: center; color: var(--muted); text-align: center; font-size: 13px;
+}
+.edit-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.bulk-list { display: grid; gap: 8px; max-height: 50vh; overflow: auto; padding-right: 2px; }
+.bulk-item { display: grid; grid-template-columns: 56px 1fr 40px; gap: 10px; align-items: center; }
+.bulk-item img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; }
+.note {
+  font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-radius: 12px; padding: 10px 12px;
+}
+.note b { color: var(--ink); }
+.toast {
+  position: fixed; left: 50%; bottom: calc(92px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--ink); color: var(--plane); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 14px;
+  z-index: 50; box-shadow: var(--shadow); max-width: calc(100vw - 32px); text-align: center;
+}
+@media (max-width: 380px) {
+  .choices { grid-template-columns: 1fr; }
+  .opts { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flash-inner, .qbar .fill { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="22" height="22"><circle cx="16" cy="12.5" r="5" fill="#fff"/><path d="M6.5 26c1.4-5 5-7.5 9.5-7.5s8.1 2.5 9.5 7.5Z" fill="#fff"/></svg>
+      </div>
+      Know Their Names
+    </div>
+    <button class="icon-btn" id="themeBtn" aria-label="Toggle light and dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </header>
+
+  <main id="app"></main>
+</div>
+
+<nav class="tabs" aria-label="Sections">
+  <div class="wrap" role="tablist">
+    <button role="tab" data-tab="practice" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7l9 5 9-5-9-5Z"/><path d="m3 17 9 5 9-5"/><path d="m3 12 9 5 9-5"/></svg>
+      Practice
+    </button>
+    <button role="tab" data-tab="roster" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M1.5 21c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/><path d="M16 4.5a4 4 0 0 1 0 7M18.5 15c2 .8 3.4 2.8 4 6"/></svg>
+      Roster
+    </button>
+    <button role="tab" data-tab="share" aria-selected="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
+      Share
+    </button>
+  </div>
+</nav>
+
+<!-- Add / edit one student -->
+<dialog id="editDlg">
+  <form class="dlg" method="dialog" id="editForm">
+    <div class="dlg-head">
+      <h2 id="editTitle">Add a student</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <label class="edit-photo" id="editPhotoBox">
+      <span id="editPhotoHint">Tap to add<br>a photo</span>
+      <img id="editPhotoImg" alt="" class="hidden">
+      <input type="file" accept="image/*" id="editPhotoInput" class="sr">
+    </label>
+    <div class="stack">
+      <label class="field"><span>Full name</span><input type="text" id="editName" autocomplete="off" required placeholder="e.g. Maya Johnson"></label>
+      <label class="field"><span>Goes by (optional)</span><input type="text" id="editNick" autocomplete="off" placeholder="e.g. May"></label>
+      <label class="field"><span>Group (optional)</span><input type="text" id="editGroup" autocomplete="off" list="groupList" placeholder="e.g. Middle School"></label>
+      <datalist id="groupList"></datalist>
+    </div>
+    <div class="row" style="margin-top:16px; justify-content:space-between">
+      <button type="button" class="btn ghost danger" id="editDelete">Remove</button>
+      <div class="row">
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn primary" id="editSave">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Bulk add from many photos -->
+<dialog id="bulkDlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h2>Name these photos</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <p class="small muted" style="margin-top:0">Names are filled in from the file names. Fix any that are wrong. Photos left blank are skipped.</p>
+    <label class="field" style="margin-bottom:12px"><span>Put them all in a group (optional)</span><input type="text" id="bulkGroup" list="groupList" autocomplete="off" placeholder="e.g. High School"></label>
+    <div class="bulk-list" id="bulkList"></div>
+    <div class="row" style="margin-top:16px; justify-content:flex-end">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="bulkSave">Add students</button>
+    </div>
+  </div>
+</dialog>
+
+<input type="file" accept="image/*" multiple id="bulkInput" class="sr">
+<input type="file" accept="application/json,.json" id="importInput" class="sr">
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   Storage: IndexedDB, one "kids" store. Everything stays local.
+   ============================================================ */
+const DB_NAME = 'know-their-names';
+const STORE = 'kids';
+let dbp;
+function db() {
+  if (!dbp) dbp = new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+  return dbp;
+}
+async function tx(mode, fn) {
+  const d = await db();
+  return new Promise((res, rej) => {
+    const t = d.transaction(STORE, mode);
+    const s = t.objectStore(STORE);
+    const out = fn(s);
+    t.oncomplete = () => res(out && 'result' in out ? out.result : undefined);
+    t.onerror = () => rej(t.error);
+  });
+}
+const store = {
+  all: () => tx('readonly', s => s.getAll()),
+  put: kid => tx('readwrite', s => s.put(kid)),
+  putMany: kids => tx('readwrite', s => { kids.forEach(k => s.put(k)); }),
+  del: id => tx('readwrite', s => s.delete(id)),
+  clear: () => tx('readwrite', s => s.clear()),
+};
+
+function prefGet(k, d) { try { const v = localStorage.getItem('ktn:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } }
+function prefSet(k, v) { try { localStorage.setItem('ktn:' + k, JSON.stringify(v)); } catch {} }
+
+/* ============================================================
+   State
+   ============================================================ */
+let kids = [];
+let tab = 'practice';
+let session = null;        // active quiz / study session
+let editingId = null;
+let editPhoto = null;
+let bulkItems = [];
+let groupFilter = prefGet('group', '');
+let roundSize = prefGet('roundSize', 10);
+let rosterQuery = '';
+
+const MAX_BOX = 5;         // Leitner boxes: 1 = new/missed … 5 = solid
+const KNOWN_BOX = 3;       // counts as "knows this name"
+
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const displayName = k => k.nick ? `${k.nick} ${k.name.split(/\s+/).slice(1).join(' ')}`.trim() : k.name;
+const box = k => k.box || 1;
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+/* ============================================================
+   Photos: downscale to a small JPEG so hundreds fit comfortably.
+   ============================================================ */
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { res(img); URL.revokeObjectURL(url); };
+    img.onerror = () => { rej(new Error('Could not read that image')); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+async function shrinkPhoto(file, max = 560) {
+  const img = await loadImage(file);
+  const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return c.toDataURL('image/jpeg', 0.82);
+}
+function nameFromFile(fname) {
+  let n = fname.replace(/\.[a-z0-9]+$/i, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (/^(img|dsc|photo|image|pxl|screenshot)\s*\d/i.test(n) || /^\d+$/.test(n)) return '';
+  return n.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ============================================================
+   Sample students (illustrated, not real people) for trying it out
+   ============================================================ */
+const SAMPLE = [
+  ['Maya Johnson','Middle School'],['Eli Carter','Middle School'],['Sofia Ramirez','Middle School'],
+  ['Noah Kim',"Middle School"],['Ava Thompson','Middle School'],['Liam O’Brien','Middle School'],
+  ['Zoe Patel','High School'],['Caleb Brooks','High School'],['Grace Nguyen','High School'],
+  ['Isaiah Moore','High School'],['Chloe Anderson','High School'],['Mateo Silva','High School'],
+];
+function sampleAvatar(i) {
+  const skins = ['#f1c9a5','#d9a47c','#a86f4c','#7a4a2e','#f6d7bf','#c68a5e'];
+  const hairs = ['#2b1d14','#5a3a22','#a0662e','#e0b25a','#1a1a1a','#7b2f1c'];
+  const bgs = ['#f7d9c4','#cfe3f7','#d8efd9','#f3d6ea','#fbe8b5','#dcd6f7','#c9ece8','#f6cfcf'];
+  const shirts = ['#3a6fd8','#2f9e6a','#d8583a','#8a4fd1','#e0a21f','#23857e','#c23d6b','#4a5568'];
+  const skin = skins[i % skins.length], hair = hairs[(i * 5) % hairs.length];
+  const bg = bgs[(i * 3) % bgs.length], shirt = shirts[(i * 7) % shirts.length];
+  const long = i % 2 === 0;
+  const glasses = i % 5 === 1;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500">
+    <rect width="400" height="500" fill="${bg}"/>
+    ${long ? `<path d="M110 200c0-80 40-125 90-125s90 45 90 125v140H110Z" fill="${hair}"/>` : ''}
+    <path d="M60 500c10-95 70-140 140-140s130 45 140 140Z" fill="${shirt}"/>
+    <rect x="175" y="290" width="50" height="60" rx="20" fill="${skin}"/>
+    <ellipse cx="200" cy="215" rx="78" ry="92" fill="${skin}"/>
+    <path d="M120 200c0-70 35-110 80-110s82 38 80 110c-20-35-50-50-80-52-35 0-62 20-80 52Z" fill="${hair}"/>
+    <circle cx="172" cy="225" r="7" fill="#2b1d14"/><circle cx="228" cy="225" r="7" fill="#2b1d14"/>
+    ${glasses ? `<g fill="none" stroke="#2b1d14" stroke-width="5"><circle cx="172" cy="225" r="20"/><circle cx="228" cy="225" r="20"/><path d="M192 225h16"/></g>` : ''}
+    <path d="M178 268q22 ${14 + (i % 3) * 4} 44 0" fill="none" stroke="#7a3b2b" stroke-width="6" stroke-linecap="round"/>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+async function addSamples() {
+  const now = Date.now();
+  const list = SAMPLE.map(([name, group], i) => ({ id: uid(), name, nick: '', group, photo: sampleAvatar(i), sample: true, box: 1, seen: 0, right: 0, added: now + i }));
+  await store.putMany(list);
+  await reload();
+  toast('Added 12 sample students');
+}
+
+/* ============================================================
+   Practice engine
+   ============================================================ */
+function pool() {
+  return kids.filter(k => !groupFilter || k.group === groupFilter);
+}
+// Pick a round: weakest boxes first, least-recently-seen breaks ties, shuffled.
+function pickRound(n) {
+  const p = pool();
+  const ranked = shuffle(p).sort((a, b) => box(a) - box(b) || (a.last || 0) - (b.last || 0));
+  return shuffle(ranked.slice(0, Math.min(n, ranked.length)));
+}
+function distractors(target, count, from) {
+  const others = shuffle(from.filter(k => k.id !== target.id && k.name !== target.name));
+  // Prefer same group so it isn't too easy.
+  const same = others.filter(k => k.group && k.group === target.group);
+  const rest = others.filter(k => !same.includes(k));
+  return same.concat(rest).slice(0, count);
+}
+async function record(kid, correct) {
+  kid.seen = (kid.seen || 0) + 1;
+  kid.last = Date.now();
+  if (correct) { kid.right = (kid.right || 0) + 1; kid.box = Math.min(MAX_BOX, box(kid) + 1); }
+  else kid.box = 1;
+  await store.put(kid);
+}
+function norm(s) { return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim(); }
+function lev(a, b) {
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+// Accepts full name, first name, or "goes by" name, with a small typo allowance.
+function typedMatches(input, kid) {
+  const g = norm(input); if (!g) return false;
+  const full = norm(kid.name), first = full.split(' ')[0], nick = norm(kid.nick || '');
+  const targets = [full, first, nick, nick && (nick + ' ' + full.split(' ').slice(1).join(' ')).trim()].filter(Boolean);
+  return targets.some(t => t === g || (t.length >= 4 && lev(t, g) <= (t.length >= 8 ? 2 : 1)));
+}
+
+function startSession(mode) {
+  const round = pickRound(mode === 'study' ? Math.max(roundSize, 20) : roundSize);
+  session = { mode, round, i: 0, score: 0, missed: [], answered: false, flipped: false };
+  render();
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const ICONS = {
+  pick: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12l3 3 5-6"/></svg>',
+  type: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>',
+  face: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
+  study: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="16" rx="3"/><path d="M7 3h11a3 3 0 0 1 3 3v12"/></svg>',
+  chev: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M1.5 21c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/><path d="M16 4.5a4 4 0 0 1 0 7M18.5 15c2 .8 3.4 2.8 4 6"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  images: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+};
+
+function render() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab && !session)));
+  if (session) return session.done ? renderResults() : session.mode === 'study' ? renderStudy() : renderQuestion();
+  if (tab === 'practice') renderHome();
+  else if (tab === 'roster') renderRoster();
+  else renderShare();
+}
+
+function groups() { return [...new Set(kids.map(k => k.group).filter(Boolean))].sort(); }
+
+function renderHome() {
+  if (!kids.length) {
+    app.innerHTML = `
+      <div class="card empty">
+        <div class="art">${ICONS.people}</div>
+        <h1>Learn every name</h1>
+        <p class="sub">Add a photo of each student, then quiz yourself until you know them all. Photos stay on this device.</p>
+        <div class="stack">
+          <button class="btn primary block" data-go="roster">${ICONS.plus} Add your students</button>
+          <button class="btn block" id="trySamples">Try it with 12 sample students</button>
+          <button class="btn ghost block" data-go="share">I got a roster file from another leader</button>
+        </div>
+      </div>`;
+    $('#trySamples').onclick = addSamples;
+    return;
+  }
+  const p = pool();
+  const known = p.filter(k => box(k) >= KNOWN_BOX).length;
+  const learning = p.filter(k => k.seen && box(k) < KNOWN_BOX).length;
+  const fresh = p.length - known - learning;
+  const pct = p.length ? known / p.length : 0;
+  const C = 2 * Math.PI * 34;
+  const gs = groups();
+  const canChoice = p.length >= 2;
+
+  app.innerHTML = `
+    <h1>Practice</h1>
+    <p class="sub">${p.length === 1 ? 'One student' : p.length + ' students'}${groupFilter ? ' in ' + esc(groupFilter) : ''}. Missed names come back more often.</p>
+
+    <div class="card progress-card">
+      <svg class="ring" viewBox="0 0 84 84" role="img" aria-label="${known} of ${p.length} names known">
+        <circle cx="42" cy="42" r="34" fill="none" stroke="var(--surface-2)" stroke-width="10"/>
+        ${known ? `<circle cx="42" cy="42" r="34" fill="none" stroke="var(--good)" stroke-width="10" stroke-linecap="round"
+          stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 42 42)"/>` : ''}
+        <text x="42" y="49" text-anchor="middle">${Math.round(pct * 100)}%</text>
+      </svg>
+      <div>
+        <b>${known} of ${p.length} names down</b>
+        <div class="legend">
+          <span><i style="background:var(--good)"></i>Know ${known}</span>
+          <span><i style="background:var(--accent)"></i>Learning ${learning}</span>
+          <span><i style="background:var(--line)"></i>New ${fresh}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="opts" style="margin:14px 0">
+      <label class="field"><span>Group</span>
+        <select id="groupSel">
+          <option value="">Everyone</option>
+          ${gs.map(g => `<option ${g === groupFilter ? 'selected' : ''}>${esc(g)}</option>`).join('')}
+        </select>
+      </label>
+      <label class="field"><span>Questions per round</span>
+        <select id="sizeSel">
+          ${[5, 10, 20, 9999].map(n => `<option value="${n}" ${n === roundSize ? 'selected' : ''}>${n === 9999 ? 'All of them' : n}</option>`).join('')}
+        </select>
+      </label>
+    </div>
+
+    <div class="modes">
+      ${modeBtn('study', ICONS.study, 'Flashcards', 'See the face, guess, then flip to check')}
+      ${modeBtn('pick', ICONS.pick, 'Pick the name', 'Photo with four names to choose from', !canChoice)}
+      ${modeBtn('type', ICONS.type, 'Type the name', 'Hardest: recall it with no hints')}
+      ${modeBtn('face', ICONS.face, 'Find the face', 'A name with four photos to choose from', !canChoice)}
+    </div>
+    ${!canChoice ? '<p class="small muted" style="margin-top:10px">Add at least two students to unlock the multiple-choice quizzes.</p>' : ''}
+  `;
+  $('#groupSel').onchange = e => { groupFilter = e.target.value; prefSet('group', groupFilter); render(); };
+  $('#sizeSel').onchange = e => { roundSize = +e.target.value; prefSet('roundSize', roundSize); };
+  app.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startSession(b.dataset.mode));
+}
+function modeBtn(mode, icon, title, sub, disabled) {
+  return `<button class="mode" data-mode="${mode}" ${disabled ? 'disabled style="opacity:.5"' : ''}>
+    <span class="ic">${icon}</span><span><b>${title}</b><small>${sub}</small></span><span class="chev">${ICONS.chev}</span></button>`;
+}
+
+function qHeader() {
+  const s = session, n = s.round.length;
+  return `<div class="qbar">
+    <button class="icon-btn" id="quit" aria-label="End round">${ICONS.x}</button>
+    <div class="track"><div class="fill" style="width:${(s.i / n) * 100}%"></div></div>
+    <div class="count">${Math.min(s.i + 1, n)} / ${n}</div>
+  </div>`;
+}
+function wireQuit() { $('#quit').onclick = () => { session = null; render(); }; }
+
+function renderQuestion() {
+  const s = session, kid = s.round[s.i], all = pool();
+  let body = '';
+  if (s.mode === 'pick') {
+    s.opts = s.opts || shuffle([kid, ...distractors(kid, 3, all)]);
+    body = `
+      <div class="photo-wrap"><img class="photo" src="${kid.photo}" alt="Who is this?"></div>
+      <div class="choices">${s.opts.map(o => `<button class="choice" data-id="${o.id}">${esc(displayName(o))}</button>`).join('')}</div>`;
+  } else if (s.mode === 'face') {
+    s.opts = s.opts || shuffle([kid, ...distractors(kid, 3, all)]);
+    body = `
+      <p class="small muted" style="text-align:center;margin:0">Which one is</p>
+      <div class="prompt-name">${esc(displayName(kid))}</div>
+      <div class="faces">${s.opts.map(o => `<button class="face" data-id="${o.id}"><img src="${o.photo}" alt=""></button>`).join('')}</div>`;
+  } else {
+    body = `
+      <div class="photo-wrap"><img class="photo" src="${kid.photo}" alt="Who is this?"></div>
+      <form class="type-row" id="typeForm" autocomplete="off">
+        <input type="text" id="typeIn" placeholder="First name is fine" autocapitalize="words" autocomplete="off" spellcheck="false" aria-label="Their name">
+        <button class="btn primary">Check</button>
+      </form>
+      <button class="btn ghost block" id="dunno" style="margin-top:8px">I don't know</button>`;
+  }
+  app.innerHTML = qHeader() + body + '<div id="fb"></div>';
+  wireQuit();
+
+  if (s.mode === 'type') {
+    const inp = $('#typeIn');
+    inp.focus();
+    $('#typeForm').onsubmit = e => { e.preventDefault(); if (inp.value.trim()) answer(typedMatches(inp.value, kid)); };
+    $('#dunno').onclick = () => answer(false);
+  } else {
+    app.querySelectorAll('[data-id]').forEach(b => b.onclick = () => {
+      if (s.answered) return;
+      const ok = b.dataset.id === kid.id;
+      app.querySelectorAll('[data-id]').forEach(x => {
+        if (x.dataset.id === kid.id) x.classList.add('right');
+        else if (x === b) x.classList.add('wrong');
+        if (s.mode === 'face') {
+          const o = s.opts.find(k => k.id === x.dataset.id);
+          x.insertAdjacentHTML('beforeend', `<span class="tag">${esc(displayName(o))}</span>`);
+        }
+      });
+      answer(ok);
+    });
+  }
+}
+
+async function answer(ok) {
+  const s = session; if (s.answered) return;
+  s.answered = true;
+  const kid = s.round[s.i];
+  if (ok) s.score++; else s.missed.push(kid);
+  await record(kid, ok);
+  if (s.mode === 'type') {
+    $('#typeIn').disabled = true;
+    $('#typeForm button').disabled = true;
+    $('#dunno').classList.add('hidden');
+  }
+  const extra = kid.nick ? ` (${esc(kid.name)})` : '';
+  $('#fb').innerHTML = `<div class="feedback ${ok ? 'good' : 'bad'}" role="status">
+    <span>${ok ? 'Yes! ' : 'That’s '}${esc(displayName(kid))}${extra}${ok ? '' : '.'}</span>
+    <button class="btn ${ok ? '' : 'primary'}" id="next">${s.i + 1 < s.round.length ? 'Next' : 'See results'}</button>
+  </div>`;
+  const next = $('#next');
+  next.focus();
+  next.onclick = advance;
+}
+function advance() {
+  const s = session;
+  s.i++; s.answered = false; s.opts = null; s.flipped = false;
+  if (s.i >= s.round.length) s.done = true;
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+function renderStudy() {
+  const s = session, kid = s.round[s.i];
+  app.innerHTML = qHeader() + `
+    <div class="flash ${s.flipped ? 'flipped' : ''}" id="flash">
+      <div class="flash-inner">
+        <div class="flash-face"><img class="photo" src="${kid.photo}" alt="Who is this?"></div>
+        <div class="flash-back" aria-hidden="${!s.flipped}">
+          <img src="${kid.photo}" alt="">
+          <div class="name-band"><b>${esc(displayName(kid))}</b>${kid.nick || kid.group ? `<span>${esc([kid.nick ? kid.name : '', kid.group].filter(Boolean).join(' · '))}</span>` : ''}</div>
+        </div>
+      </div>
+    </div>
+    ${s.flipped ? `
+      <div class="choices">
+        <button class="btn" id="again">Still learning</button>
+        <button class="btn primary" id="gotit">I knew it</button>
+      </div>` : `
+      <button class="btn primary block" id="flip" style="margin-top:14px">Show name</button>
+      <p class="hint">Say their name out loud first, then flip.</p>`}
+  `;
+  wireQuit();
+  const flip = () => { s.flipped = true; renderStudy(); };
+  $('#flash').onclick = () => { if (!s.flipped) flip(); };
+  if (!s.flipped) $('#flip').onclick = flip;
+  else {
+    const mark = async ok => { if (ok) s.score++; else s.missed.push(kid); await record(kid, ok); advance(); };
+    $('#gotit').onclick = () => mark(true);
+    $('#again').onclick = () => mark(false);
+  }
+}
+
+function renderResults() {
+  const s = session, n = s.round.length;
+  const pct = Math.round((s.score / n) * 100);
+  const line = pct === 100 ? 'Perfect round!' : pct >= 80 ? 'Really close. Nice work.' : pct >= 50 ? 'Getting there.' : 'Every round helps. Keep going.';
+  app.innerHTML = `
+    <div class="card" style="text-align:center">
+      <div class="score-big">${s.score}/${n}</div>
+      <p class="sub" style="margin:6px 0 0">${line}</p>
+    </div>
+    ${s.missed.length ? `
+      <div class="section-title"><h2>Take another look</h2><span class="small muted">${s.missed.length} missed</span></div>
+      <div class="missed">${s.missed.map(k => `<figure><img src="${k.photo}" alt=""><figcaption>${esc(displayName(k))}</figcaption></figure>`).join('')}</div>` : ''}
+    <div class="stack" style="margin-top:18px">
+      <button class="btn primary block" id="again">Another round</button>
+      <button class="btn block" id="home">Done</button>
+    </div>`;
+  $('#again').onclick = () => startSession(s.mode);
+  $('#home').onclick = () => { session = null; render(); };
+}
+
+function renderRoster() {
+  const q = norm(rosterQuery);
+  const list = kids
+    .filter(k => !q || norm(k.name + ' ' + (k.nick || '') + ' ' + (k.group || '')).includes(q))
+    .sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name));
+  const byGroup = {};
+  list.forEach(k => (byGroup[k.group || 'No group'] ||= []).push(k));
+  const hasSamples = kids.some(k => k.sample);
+
+  app.innerHTML = `
+    <h1>Roster</h1>
+    <p class="sub">${kids.length} ${kids.length === 1 ? 'student' : 'students'}. Tap anyone to edit.</p>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn primary" id="addOne">${ICONS.plus} Add one</button>
+      <button class="btn" id="addMany">${ICONS.images} Add many photos</button>
+    </div>
+    ${kids.length ? `<div class="toolbar"><input type="text" id="rq" placeholder="Search names" value="${esc(rosterQuery)}" aria-label="Search names"></div>` : `
+      <div class="note"><b>Tip:</b> name photo files like <b>Maya Johnson.jpg</b> before choosing "Add many photos" and the names fill in on their own.</div>`}
+    ${Object.entries(byGroup).map(([g, ks]) => `
+      <div class="section-title"><h2>${esc(g)}</h2><span class="small muted">${ks.length}</span></div>
+      <div class="grid">${ks.map(k => `
+        <button class="kid" data-id="${k.id}">
+          <img src="${k.photo}" alt="" loading="lazy">
+          <div class="meta"><b>${esc(displayName(k))}</b>
+            <div class="dots" title="Level ${box(k)} of ${MAX_BOX}">${Array.from({ length: MAX_BOX }, (_, i) => `<i class="${k.seen && i < box(k) ? 'on' : ''}"></i>`).join('')}</div>
+          </div>
+        </button>`).join('')}</div>`).join('')}
+    ${q && !list.length ? '<p class="muted">No one matches that.</p>' : ''}
+    ${hasSamples ? '<button class="btn ghost danger block" id="dropSamples" style="margin-top:20px">Remove the sample students</button>' : ''}
+  `;
+  $('#addOne').onclick = () => openEdit(null);
+  $('#addMany').onclick = () => $('#bulkInput').click();
+  const rq = $('#rq');
+  if (rq) rq.oninput = e => { rosterQuery = e.target.value; const pos = e.target.selectionStart; renderRoster(); const n = $('#rq'); n.focus(); n.setSelectionRange(pos, pos); };
+  app.querySelectorAll('.kid').forEach(b => b.onclick = () => openEdit(b.dataset.id));
+  const ds = $('#dropSamples');
+  if (ds) ds.onclick = async () => {
+    await tx('readwrite', s => kids.filter(k => k.sample).forEach(k => s.delete(k.id)));
+    await reload(); toast('Sample students removed');
+  };
+}
+
+function renderShare() {
+  app.innerHTML = `
+    <h1>Share with leaders</h1>
+    <p class="sub">There's no account or server. To give another leader the roster, send them a file.</p>
+    <div class="card stack">
+      <h2>Send the roster</h2>
+      <p class="small muted" style="margin:0">Saves one file with every name and photo. Send it to other leaders by text, AirDrop, or email. They open this app and choose "Load a roster file."</p>
+      <button class="btn primary block" id="exportBtn" ${kids.length ? '' : 'disabled'}>Save roster file</button>
+    </div>
+    <div class="card stack" style="margin-top:12px">
+      <h2>Load a roster file</h2>
+      <p class="small muted" style="margin:0">Adds everyone from a file another leader sent you. Anyone already on your roster is updated rather than added twice, and your quiz progress is kept.</p>
+      <button class="btn block" id="importBtn">Choose file</button>
+    </div>
+    <div class="note" style="margin-top:12px">
+      <b>These are photos of minors.</b> Share the file only with leaders your church has approved, and delete it from chats or email once they've loaded it. Follow your church's policy on student photos, and get parents' permission if the policy calls for it.
+    </div>
+    <div class="card stack" style="margin-top:12px">
+      <h2>This device</h2>
+      <p class="small muted" style="margin:0">Photos are saved only in this browser. Clearing your browser data erases them too, so keep a roster file somewhere safe.</p>
+      <button class="btn danger block" id="resetProgress" ${kids.length ? '' : 'disabled'}>Reset my quiz progress</button>
+      <button class="btn danger block" id="wipe" ${kids.length ? '' : 'disabled'}>Delete all students from this device</button>
+    </div>`;
+  $('#exportBtn').onclick = exportRoster;
+  $('#importBtn').onclick = () => $('#importInput').click();
+  $('#resetProgress').onclick = async () => {
+    if (!confirm('Reset quiz progress for everyone? Names and photos stay.')) return;
+    kids.forEach(k => { k.box = 1; k.seen = 0; k.right = 0; k.last = 0; });
+    await store.putMany(kids); await reload(); toast('Progress reset');
+  };
+  $('#wipe').onclick = async () => {
+    if (!confirm(`Delete all ${kids.length} students and photos from this device? This can't be undone unless you have a roster file.`)) return;
+    await store.clear(); await reload(); toast('Everything deleted from this device');
+  };
+}
+
+/* ============================================================
+   Add / edit dialog
+   ============================================================ */
+const editDlg = $('#editDlg');
+function fillGroupList() { $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join(''); }
+function setEditPhoto(src) {
+  editPhoto = src;
+  $('#editPhotoImg').classList.toggle('hidden', !src);
+  $('#editPhotoHint').classList.toggle('hidden', !!src);
+  if (src) $('#editPhotoImg').src = src;
+}
+function openEdit(id) {
+  editingId = id;
+  const k = id ? kids.find(x => x.id === id) : null;
+  fillGroupList();
+  $('#editTitle').textContent = k ? 'Edit student' : 'Add a student';
+  $('#editName').value = k ? k.name : '';
+  $('#editNick').value = k ? k.nick || '' : '';
+  $('#editGroup').value = k ? k.group || '' : (groupFilter || '');
+  $('#editDelete').classList.toggle('hidden', !k);
+  $('#editPhotoInput').value = '';
+  setEditPhoto(k ? k.photo : null);
+  editDlg.showModal();
+}
+$('#editPhotoInput').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    setEditPhoto(await shrinkPhoto(f));
+    if (!$('#editName').value) $('#editName').value = nameFromFile(f.name);
+  } catch (err) { toast(err.message); }
+};
+$('#editForm').onsubmit = async e => {
+  e.preventDefault();
+  const name = $('#editName').value.trim();
+  if (!name) return $('#editName').focus();
+  if (!editPhoto) { toast('Add a photo first'); return; }
+  const prev = editingId ? kids.find(x => x.id === editingId) : null;
+  const kid = Object.assign({}, prev || { id: uid(), box: 1, seen: 0, right: 0, added: Date.now() }, {
+    name, nick: $('#editNick').value.trim(), group: $('#editGroup').value.trim(), photo: editPhoto,
+  });
+  delete kid.sample;
+  await store.put(kid);
+  editDlg.close();
+  await reload();
+  toast(prev ? 'Saved' : `Added ${name}`);
+};
+$('#editDelete').onclick = async () => {
+  const k = kids.find(x => x.id === editingId);
+  if (!k || !confirm(`Remove ${k.name}?`)) return;
+  await store.del(k.id);
+  editDlg.close();
+  await reload();
+  toast(`Removed ${k.name}`);
+};
+
+/* ============================================================
+   Bulk add
+   ============================================================ */
+const bulkDlg = $('#bulkDlg');
+$('#bulkInput').onchange = async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length) return;
+  toast(`Preparing ${files.length} photo${files.length > 1 ? 's' : ''}…`);
+  bulkItems = [];
+  for (const f of files) {
+    try { bulkItems.push({ key: uid(), photo: await shrinkPhoto(f), name: nameFromFile(f.name) }); }
+    catch { /* skip unreadable files */ }
+  }
+  if (!bulkItems.length) { toast('None of those could be read as photos'); return; }
+  fillGroupList();
+  $('#bulkGroup').value = groupFilter || '';
+  renderBulk();
+  bulkDlg.showModal();
+};
+function renderBulk() {
+  $('#bulkList').innerHTML = bulkItems.map(it => `
+    <div class="bulk-item" data-key="${it.key}">
+      <img src="${it.photo}" alt="">
+      <input type="text" value="${esc(it.name)}" placeholder="Their name" aria-label="Name for this photo" autocapitalize="words">
+      <button class="icon-btn" aria-label="Skip this photo">${ICONS.x}</button>
+    </div>`).join('');
+  $('#bulkList').querySelectorAll('.bulk-item').forEach(row => {
+    const it = bulkItems.find(x => x.key === row.dataset.key);
+    row.querySelector('input').oninput = e => { it.name = e.target.value; };
+    row.querySelector('button').onclick = () => { bulkItems = bulkItems.filter(x => x !== it); renderBulk(); };
+  });
+  const first = $('#bulkList input[value=""]');
+  if (first) first.focus();
+}
+$('#bulkSave').onclick = async () => {
+  const group = $('#bulkGroup').value.trim();
+  const now = Date.now();
+  const ready = bulkItems.filter(it => it.name.trim()).map((it, i) => ({
+    id: uid(), name: it.name.trim(), nick: '', group, photo: it.photo, box: 1, seen: 0, right: 0, added: now + i,
+  }));
+  if (!ready.length) { toast('Type at least one name'); return; }
+  await store.putMany(ready);
+  bulkDlg.close();
+  await reload();
+  toast(`Added ${ready.length} student${ready.length > 1 ? 's' : ''}`);
+};
+
+document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+/* ============================================================
+   Export / import
+   ============================================================ */
+function exportRoster() {
+  const data = {
+    app: 'know-their-names', version: 1, exported: new Date().toISOString(),
+    students: kids.filter(k => !k.sample).map(({ name, nick, group, photo }) => ({ name, nick, group, photo })),
+  };
+  if (!data.students.length) { toast('Only sample students so far. Add real ones first.'); return; }
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `youth-roster-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast(`Saved ${data.students.length} students`);
+}
+$('#importInput').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const list = Array.isArray(data.students) ? data.students : null;
+    if (data.app !== 'know-their-names' || !list) throw new Error();
+    const key = k => norm(k.name) + '|' + norm(k.group || '');
+    const existing = new Map(kids.map(k => [key(k), k]));
+    let added = 0, updated = 0;
+    const now = Date.now();
+    const out = [];
+    list.forEach((s, i) => {
+      if (!s || typeof s.name !== 'string' || !s.name.trim() || typeof s.photo !== 'string' || !/^data:image\//.test(s.photo)) return;
+      const clean = { name: s.name.trim().slice(0, 80), nick: String(s.nick || '').trim().slice(0, 40), group: String(s.group || '').trim().slice(0, 40), photo: s.photo };
+      const prev = existing.get(key(clean));
+      if (prev) { out.push(Object.assign({}, prev, clean)); updated++; }
+      else { out.push({ id: uid(), ...clean, box: 1, seen: 0, right: 0, added: now + i }); added++; }
+    });
+    await store.putMany(out);
+    await reload();
+    toast(`Loaded: ${added} new, ${updated} updated`);
+  } catch {
+    toast('That isn’t a roster file from this app');
+  }
+};
+
+/* ============================================================
+   Theme, tabs, boot
+   ============================================================ */
+function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+applyTheme(prefGet('theme', ''));
+$('#themeBtn').onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  applyTheme(next); prefSet('theme', next);
+};
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => {
+  session = null; tab = b.dataset.tab; render(); window.scrollTo({ top: 0 });
+});
+app.addEventListener('click', e => {
+  const go = e.target.closest('[data-go]');
+  if (go) { tab = go.dataset.go; render(); }
+});
+
+async function reload() {
+  kids = await store.all();
+  if (groupFilter && !kids.some(k => k.group === groupFilter)) groupFilter = '';
+  render();
+}
+
+reload().catch(() => {
+  app.innerHTML = `<div class="card empty"><h1>Storage is blocked</h1>
+    <p class="sub">This browser won't let the app save photos (private browsing can do this). Open it in a normal window.</p></div>`;
+});
+})();
+</script>
+</body>
+</html>
