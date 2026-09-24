@@ -12,15 +12,24 @@ and visit `http://localhost:8000/name-quiz/`. On a phone, host it anywhere stati
 
 1. **Roster → Add many photos.** Pick a batch of photos. If the files are named after
    the students (`Maya Johnson.jpg`, `maya_johnson.png`), the names fill in on their own.
-   Otherwise you type each name. You can also put the whole batch into a group such as
-   "Middle School." **Add one** uses the phone camera directly.
-2. **Practice.** Choose a group and a round size, then one of four modes:
+   Otherwise you type each name. You can also give the whole batch a grade, school,
+   gender, or group. **Add one** uses the phone camera directly.
+2. **Practice.** Choose a round size, then one of four modes (no game over here):
    - **Flashcards:** see the face, say the name, flip to check, then mark whether you knew it.
    - **Pick the name:** a photo with four names to choose from.
    - **Type the name:** a photo and a text box. The first name, full name, or "goes by"
      name all count, and small typos are accepted.
    - **Find the face:** a name with four photos to choose from.
-3. **Share → Save roster file.** Sends every name and photo to other leaders as one file.
+3. **Build a deck.** On the Practice tab, narrow the deck by group, grade, school, and/or
+   gender (for example, "8th grade · Girls · Lincoln Middle"). A filter shows up once at
+   least one student has that detail filled in. Every quiz, and the streak challenge,
+   uses only the students in the current deck.
+4. **Streak challenge.** A game: get names right in a row, and one miss ends it. Choose to
+   win at 10 in a row, 25 in a row, or all of the deck (every student once, in random
+   order), or play endless. You can answer by picking the name, typing it, or finding the
+   face. Correct answers move on automatically. Your best streak is saved for each deck,
+   goal, and answer style, and the game-over screen shows the student who stopped you.
+5. **Share → Save roster file.** Sends every name and photo to other leaders as one file.
    They open the app and choose **Load a roster file.**
 
 Missed names come back sooner. Each student sits in a Leitner box from 1 to 5: a correct

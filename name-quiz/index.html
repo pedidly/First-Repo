@@ -175,6 +175,22 @@ input[type=text]:focus, select:focus, .btn:focus-visible, button:focus-visible {
 .mode .chev { color: var(--muted); }
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* ---------- deck + game ---------- */
+.deck-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.deck-head .btn { min-height: 38px; padding: 6px 12px; }
+.card.game { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.card.game .ic { width: 44px; height: 44px; flex: none; border-radius: 14px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+.card.game .ic svg { width: 24px; height: 24px; }
+.card.game select { background: var(--surface); }
+.best { font-size: 14px; color: var(--ink-2); }
+.best b { color: var(--ink); font-size: 16px; }
+.streak-count { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 20px; color: var(--accent); min-width: 44px; justify-content: flex-end; }
+.streak-count svg { width: 22px; height: 22px; }
+.streak-count span { font-size: 14px; font-weight: 600; }
+.trophy { width: 64px; height: 64px; margin: 4px auto 6px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.trophy svg { width: 36px; height: 36px; }
+.new-best { display: inline-block; margin: 10px 0 0; padding: 5px 12px; border-radius: 999px; background: var(--good-soft); color: var(--good); font-weight: 700; font-size: 14px; }
+
 /* ---------- empty state ---------- */
 .empty { text-align: center; padding: 28px 18px; }
 .empty .art { width: 96px; height: 96px; margin: 0 auto 12px; border-radius: 28px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
@@ -254,6 +270,7 @@ input[type=text]:focus, select:focus, .btn:focus-visible, button:focus-visible {
 .kid img { width: 100%; aspect-ratio: 1; object-fit: cover; object-position: center 30%; background: var(--surface-2); }
 .kid .meta { padding: 7px 8px 9px; }
 .kid .meta b { display: block; font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kid .meta small { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kid .dots { display: flex; gap: 3px; margin-top: 5px; }
 .kid .dots i { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-2); }
 .kid .dots i.on { background: var(--good); }
@@ -347,8 +364,14 @@ dialog::backdrop { background: rgba(20,15,10,.5); }
     <div class="stack">
       <label class="field"><span>Full name</span><input type="text" id="editName" autocomplete="off" required placeholder="e.g. Maya Johnson"></label>
       <label class="field"><span>Goes by (optional)</span><input type="text" id="editNick" autocomplete="off" placeholder="e.g. May"></label>
-      <label class="field"><span>Group (optional)</span><input type="text" id="editGroup" autocomplete="off" list="groupList" placeholder="e.g. Middle School"></label>
+      <div class="opts">
+        <label class="field"><span>Grade</span><select id="editGrade"><option value="">—</option><option>5th</option><option>6th</option><option>7th</option><option>8th</option><option>9th</option><option>10th</option><option>11th</option><option>12th</option></select></label>
+        <label class="field"><span>Gender</span><select id="editGender"><option value="">—</option><option>Boy</option><option>Girl</option></select></label>
+      </div>
+      <label class="field"><span>School (optional)</span><input type="text" id="editSchool" autocomplete="off" list="schoolList" placeholder="e.g. Lincoln Middle"></label>
+      <label class="field"><span>Group (optional)</span><input type="text" id="editGroup" autocomplete="off" list="groupList" placeholder="e.g. Middle School, Small group A"></label>
       <datalist id="groupList"></datalist>
+      <datalist id="schoolList"></datalist>
     </div>
     <div class="row" style="margin-top:16px; justify-content:space-between">
       <button type="button" class="btn ghost danger" id="editDelete">Remove</button>
@@ -370,7 +393,13 @@ dialog::backdrop { background: rgba(20,15,10,.5); }
       </button>
     </div>
     <p class="small muted" style="margin-top:0">Names are filled in from the file names. Fix any that are wrong. Photos left blank are skipped.</p>
-    <label class="field" style="margin-bottom:12px"><span>Put them all in a group (optional)</span><input type="text" id="bulkGroup" list="groupList" autocomplete="off" placeholder="e.g. High School"></label>
+    <p class="small" style="margin:0 0 6px;font-weight:600;color:var(--ink-2)">Apply to everyone in this batch (optional)</p>
+    <div class="opts" style="margin-bottom:12px">
+      <label class="field"><span>Grade</span><select id="bulkGrade"><option value="">—</option><option>5th</option><option>6th</option><option>7th</option><option>8th</option><option>9th</option><option>10th</option><option>11th</option><option>12th</option></select></label>
+      <label class="field"><span>Gender</span><select id="bulkGender"><option value="">—</option><option>Boy</option><option>Girl</option></select></label>
+      <label class="field"><span>School</span><input type="text" id="bulkSchool" list="schoolList" autocomplete="off" placeholder="e.g. Central High"></label>
+      <label class="field"><span>Group</span><input type="text" id="bulkGroup" list="groupList" autocomplete="off" placeholder="e.g. High School"></label>
+    </div>
     <div class="bulk-list" id="bulkList"></div>
     <div class="row" style="margin-top:16px; justify-content:flex-end">
       <button type="button" class="btn" data-close>Cancel</button>
@@ -431,7 +460,16 @@ let session = null;        // active quiz / study session
 let editingId = null;
 let editPhoto = null;
 let bulkItems = [];
-let groupFilter = prefGet('group', '');
+// Deck filters: an empty value means "any".
+const FILTERS = [
+  { key: 'group',  label: 'Group' },
+  { key: 'grade',  label: 'Grade' },
+  { key: 'school', label: 'School' },
+  { key: 'gender', label: 'Gender' },
+];
+const GRADES = ['5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'];
+const GENDERS = ['Boy', 'Girl'];
+let filters = prefGet('filters', null) || { group: prefGet('group', '') };
 let roundSize = prefGet('roundSize', 10);
 let rosterQuery = '';
 
@@ -483,11 +521,14 @@ function nameFromFile(fname) {
 /* ============================================================
    Sample students (illustrated, not real people) for trying it out
    ============================================================ */
+// [name, group, grade, school]; even rows are girls, odd rows boys.
 const SAMPLE = [
-  ['Maya Johnson','Middle School'],['Eli Carter','Middle School'],['Sofia Ramirez','Middle School'],
-  ['Noah Kim',"Middle School"],['Ava Thompson','Middle School'],['Liam O’Brien','Middle School'],
-  ['Zoe Patel','High School'],['Caleb Brooks','High School'],['Grace Nguyen','High School'],
-  ['Isaiah Moore','High School'],['Chloe Anderson','High School'],['Mateo Silva','High School'],
+  ['Maya Johnson','Middle School','6th','Lincoln Middle'],['Eli Carter','Middle School','6th','Lincoln Middle'],
+  ['Sofia Ramirez','Middle School','7th','Westview Middle'],['Noah Kim','Middle School','7th','Lincoln Middle'],
+  ['Ava Thompson','Middle School','8th','Westview Middle'],['Liam O’Brien','Middle School','8th','Westview Middle'],
+  ['Zoe Patel','High School','9th','Central High'],['Caleb Brooks','High School','9th','Riverside High'],
+  ['Grace Nguyen','High School','10th','Central High'],['Isaiah Moore','High School','11th','Riverside High'],
+  ['Chloe Anderson','High School','12th','Central High'],['Mateo Silva','High School','12th','Riverside High'],
 ];
 function sampleAvatar(i) {
   const skins = ['#f1c9a5','#d9a47c','#a86f4c','#7a4a2e','#f6d7bf','#c68a5e'];
@@ -513,7 +554,7 @@ function sampleAvatar(i) {
 }
 async function addSamples() {
   const now = Date.now();
-  const list = SAMPLE.map(([name, group], i) => ({ id: uid(), name, nick: '', group, photo: sampleAvatar(i), sample: true, box: 1, seen: 0, right: 0, added: now + i }));
+  const list = SAMPLE.map(([name, group, grade, school], i) => ({ id: uid(), name, nick: '', group, grade, school, gender: i % 2 ? 'Boy' : 'Girl', photo: sampleAvatar(i), sample: true, box: 1, seen: 0, right: 0, added: now + i }));
   await store.putMany(list);
   await reload();
   toast('Added 12 sample students');
@@ -523,8 +564,19 @@ async function addSamples() {
    Practice engine
    ============================================================ */
 function pool() {
-  return kids.filter(k => !groupFilter || k.group === groupFilter);
+  return kids.filter(k => FILTERS.every(f => !filters[f.key] || k[f.key] === filters[f.key]));
 }
+function valuesFor(key) {
+  const vals = [...new Set(kids.map(k => k[key]).filter(Boolean))];
+  const order = key === 'grade' ? GRADES : key === 'gender' ? GENDERS : null;
+  return order ? vals.sort((a, b) => order.indexOf(a) - order.indexOf(b)) : vals.sort();
+}
+function deckLabel() {
+  const parts = FILTERS.map(f => filters[f.key]).filter(Boolean)
+    .map(v => GRADES.includes(v) ? v + ' grade' : v === 'Boy' ? 'Boys' : v === 'Girl' ? 'Girls' : v);
+  return parts.length ? parts.join(' \u00b7 ') : 'Everyone';
+}
+const deckKey = () => FILTERS.map(f => filters[f.key] || '').join('|');
 // Pick a round: weakest boxes first, least-recently-seen breaks ties, shuffled.
 function pickRound(n) {
   const p = pool();
@@ -570,6 +622,39 @@ function startSession(mode) {
   render();
 }
 
+/* ---------- Streak challenge: one miss and the game is over ---------- */
+const STREAK_TARGETS = { '10': 10, '25': 25, deck: 0, endless: 0 };
+let streakTarget = prefGet('streakTarget', 'deck');
+let streakStyle = prefGet('streakStyle', 'pick');
+const bestKey = (target, style) => `${deckKey()}#${target}#${style}`;
+const getBest = (target, style) => (prefGet('bests', {})[bestKey(target, style)] || 0);
+function saveBest(target, style, n) {
+  const all = prefGet('bests', {});
+  const k = bestKey(target, style);
+  if (n > (all[k] || 0)) { all[k] = n; prefSet('bests', all); return true; }
+  return false;
+}
+function streakGoal(targetKind) {
+  const n = pool().length;
+  if (targetKind === 'deck') return n;
+  if (targetKind === 'endless') return 0;
+  return STREAK_TARGETS[targetKind];
+}
+// Deal the whole deck again in a new order, never repeating the last face.
+function dealMore(s) {
+  const d = shuffle(pool());
+  const last = s.round[s.round.length - 1];
+  if (last && d.length > 1 && d[0].id === last.id) d.push(d.shift());
+  s.round.push(...d);
+}
+function startStreak() {
+  const style = pool().length < 2 ? 'type' : streakStyle;
+  session = { mode: 'streak', style, targetKind: streakTarget, target: streakGoal(streakTarget),
+    best: getBest(streakTarget, style), round: [], i: 0, score: 0, missed: [], answered: false };
+  dealMore(session);
+  render();
+}
+
 /* ============================================================
    Rendering
    ============================================================ */
@@ -582,18 +667,18 @@ const ICONS = {
   people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M1.5 21c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/><path d="M16 4.5a4 4 0 0 1 0 7M18.5 15c2 .8 3.4 2.8 4 6"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   images: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4 0 7-2.7 7-7 0-4-3-6.5-4-9.5-.4 2.2-1.6 3.6-3 4.5C11.4 7.4 10 4.6 8.5 2.5 8.5 7 5 9.5 5 15c0 4.3 3 7 7 7Z"/><path d="M12 22c-1.7 0-3-1.3-3-3.2 0-2 1.5-3 3-4.8 1.5 1.8 3 2.8 3 4.8 0 1.9-1.3 3.2-3 3.2Z"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M17 5h3v2a4 4 0 0 1-3 3.9M7 5H4v2a4 4 0 0 0 3 3.9"/></svg>',
   x: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 };
 
 function render() {
   document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab && !session)));
-  if (session) return session.done ? renderResults() : session.mode === 'study' ? renderStudy() : renderQuestion();
+  if (session) return session.done ? (session.mode === 'streak' ? renderStreakEnd() : renderResults()) : session.mode === 'study' ? renderStudy() : renderQuestion();
   if (tab === 'practice') renderHome();
   else if (tab === 'roster') renderRoster();
   else renderShare();
 }
-
-function groups() { return [...new Set(kids.map(k => k.group).filter(Boolean))].sort(); }
 
 function renderHome() {
   if (!kids.length) {
@@ -612,19 +697,75 @@ function renderHome() {
     return;
   }
   const p = pool();
+  const anyFilter = FILTERS.some(f => filters[f.key]);
+  const filterable = FILTERS.filter(f => valuesFor(f.key).length);
+  const deckCard = `
+    <div class="card">
+      <div class="deck-head">
+        <div><h2 style="margin:0">Your deck</h2>
+          <span class="small muted">${esc(deckLabel())} · ${p.length === 1 ? '1 student' : p.length + ' students'}</span></div>
+        ${anyFilter ? '<button class="btn ghost" id="clearDeck">Everyone</button>' : ''}
+      </div>
+      ${filterable.length ? `<div class="opts" style="margin-top:12px">
+        ${filterable.map(f => `<label class="field"><span>${f.label}</span>
+          <select data-filter="${f.key}">
+            <option value="">Any</option>
+            ${valuesFor(f.key).map(v => `<option ${v === filters[f.key] ? 'selected' : ''}>${esc(v)}</option>`).join('')}
+          </select></label>`).join('')}
+      </div>` : `<p class="small muted" style="margin:10px 0 0">Give students a grade, school, gender, or group on the Roster tab to build smaller decks.</p>`}
+    </div>`;
+
+  if (!p.length) {
+    app.innerHTML = `<h1>Practice</h1>${deckCard}
+      <div class="card empty" style="margin-top:12px"><p class="sub" style="margin:0">No one matches all of those. Loosen a filter or tap "Everyone."</p></div>`;
+    wireDeck();
+    return;
+  }
+
   const known = p.filter(k => box(k) >= KNOWN_BOX).length;
   const learning = p.filter(k => k.seen && box(k) < KNOWN_BOX).length;
   const fresh = p.length - known - learning;
-  const pct = p.length ? known / p.length : 0;
+  const pct = known / p.length;
   const C = 2 * Math.PI * 34;
-  const gs = groups();
   const canChoice = p.length >= 2;
+  const style = canChoice ? streakStyle : 'type';
+  const best = getBest(streakTarget, style);
 
   app.innerHTML = `
     <h1>Practice</h1>
-    <p class="sub">${p.length === 1 ? 'One student' : p.length + ' students'}${groupFilter ? ' in ' + esc(groupFilter) : ''}. Missed names come back more often.</p>
+    <p class="sub">Pick a deck, then play or practice.</p>
+    ${deckCard}
 
-    <div class="card progress-card">
+    <div class="card game" style="margin-top:12px">
+      <div class="deck-head">
+        <div class="row" style="gap:12px;flex-wrap:nowrap">
+          <span class="ic">${ICONS.flame}</span>
+          <div><h2 style="margin:0">Streak challenge</h2>
+            <span class="small muted">Get them right in a row. One miss and it's game over.</span></div>
+        </div>
+      </div>
+      <div class="opts" style="margin:12px 0">
+        <label class="field"><span>Win at</span>
+          <select id="targetSel">
+            <option value="10" ${streakTarget === '10' ? 'selected' : ''}>10 in a row</option>
+            <option value="25" ${streakTarget === '25' ? 'selected' : ''}>25 in a row</option>
+            <option value="deck" ${streakTarget === 'deck' ? 'selected' : ''}>All ${p.length}</option>
+            <option value="endless" ${streakTarget === 'endless' ? 'selected' : ''}>Endless</option>
+          </select></label>
+        <label class="field"><span>Answer by</span>
+          <select id="styleSel">
+            <option value="pick" ${style === 'pick' ? 'selected' : ''} ${canChoice ? '' : 'disabled'}>Pick name</option>
+            <option value="type" ${style === 'type' ? 'selected' : ''}>Type name</option>
+            <option value="face" ${style === 'face' ? 'selected' : ''} ${canChoice ? '' : 'disabled'}>Find face</option>
+          </select></label>
+      </div>
+      <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+        <span class="best">${best ? `Best: <b>${best}</b> in a row` : 'No record yet'}</span>
+        <button class="btn primary" id="playStreak">Play</button>
+      </div>
+    </div>
+
+    <div class="card progress-card" style="margin-top:12px">
       <svg class="ring" viewBox="0 0 84 84" role="img" aria-label="${known} of ${p.length} names known">
         <circle cx="42" cy="42" r="34" fill="none" stroke="var(--surface-2)" stroke-width="10"/>
         ${known ? `<circle cx="42" cy="42" r="34" fill="none" stroke="var(--good)" stroke-width="10" stroke-linecap="round"
@@ -641,31 +782,34 @@ function renderHome() {
       </div>
     </div>
 
-    <div class="opts" style="margin:14px 0">
-      <label class="field"><span>Group</span>
-        <select id="groupSel">
-          <option value="">Everyone</option>
-          ${gs.map(g => `<option ${g === groupFilter ? 'selected' : ''}>${esc(g)}</option>`).join('')}
-        </select>
-      </label>
-      <label class="field"><span>Questions per round</span>
-        <select id="sizeSel">
-          ${[5, 10, 20, 9999].map(n => `<option value="${n}" ${n === roundSize ? 'selected' : ''}>${n === 9999 ? 'All of them' : n}</option>`).join('')}
-        </select>
-      </label>
+    <div class="section-title"><h2>Practice rounds</h2>
+      <label class="small muted">Questions
+        <select id="sizeSel" style="width:auto;min-height:36px;padding:4px 8px;margin-left:6px">
+          ${[5, 10, 20, 9999].map(n => `<option value="${n}" ${n === roundSize ? 'selected' : ''}>${n === 9999 ? 'All' : n}</option>`).join('')}
+        </select></label>
     </div>
-
+    <p class="small muted" style="margin:-4px 0 12px">No game over here. Missed names come back more often.</p>
     <div class="modes">
       ${modeBtn('study', ICONS.study, 'Flashcards', 'See the face, guess, then flip to check')}
       ${modeBtn('pick', ICONS.pick, 'Pick the name', 'Photo with four names to choose from', !canChoice)}
       ${modeBtn('type', ICONS.type, 'Type the name', 'Hardest: recall it with no hints')}
       ${modeBtn('face', ICONS.face, 'Find the face', 'A name with four photos to choose from', !canChoice)}
     </div>
-    ${!canChoice ? '<p class="small muted" style="margin-top:10px">Add at least two students to unlock the multiple-choice quizzes.</p>' : ''}
+    ${!canChoice ? '<p class="small muted" style="margin-top:10px">This deck needs at least two students for the multiple-choice modes.</p>' : ''}
   `;
-  $('#groupSel').onchange = e => { groupFilter = e.target.value; prefSet('group', groupFilter); render(); };
+  wireDeck();
+  $('#targetSel').onchange = e => { streakTarget = e.target.value; prefSet('streakTarget', streakTarget); render(); };
+  $('#styleSel').onchange = e => { streakStyle = e.target.value; prefSet('streakStyle', streakStyle); render(); };
+  $('#playStreak').onclick = startStreak;
   $('#sizeSel').onchange = e => { roundSize = +e.target.value; prefSet('roundSize', roundSize); };
   app.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => startSession(b.dataset.mode));
+}
+function wireDeck() {
+  app.querySelectorAll('[data-filter]').forEach(sel => sel.onchange = () => {
+    filters[sel.dataset.filter] = sel.value; prefSet('filters', filters); render();
+  });
+  const c = $('#clearDeck');
+  if (c) c.onclick = () => { filters = {}; prefSet('filters', filters); render(); };
 }
 function modeBtn(mode, icon, title, sub, disabled) {
   return `<button class="mode" data-mode="${mode}" ${disabled ? 'disabled style="opacity:.5"' : ''}>
@@ -674,23 +818,34 @@ function modeBtn(mode, icon, title, sub, disabled) {
 
 function qHeader() {
   const s = session, n = s.round.length;
+  if (s.mode === 'streak') {
+    const fill = s.target ? (s.score / s.target) * 100 : 0;
+    return `<div class="qbar">
+      <button class="icon-btn" id="quit" aria-label="End game">${ICONS.x}</button>
+      ${s.target
+        ? `<div class="track"><div class="fill" style="width:${fill}%"></div></div>`
+        : `<div class="small muted" style="flex:1">Endless${s.best ? ` · best ${s.best}` : ''}</div>`}
+      <div class="streak-count" aria-label="Streak ${s.score}">${ICONS.flame}${s.score}${s.target ? `<span class="muted">/${s.target}</span>` : ''}</div>
+    </div>`;
+  }
   return `<div class="qbar">
     <button class="icon-btn" id="quit" aria-label="End round">${ICONS.x}</button>
     <div class="track"><div class="fill" style="width:${(s.i / n) * 100}%"></div></div>
     <div class="count">${Math.min(s.i + 1, n)} / ${n}</div>
   </div>`;
 }
-function wireQuit() { $('#quit').onclick = () => { session = null; render(); }; }
+function wireQuit() { $('#quit').onclick = () => { clearTimeout(session.timer); session = null; render(); }; }
 
 function renderQuestion() {
   const s = session, kid = s.round[s.i], all = pool();
+  const style = s.style || s.mode;
   let body = '';
-  if (s.mode === 'pick') {
+  if (style === 'pick') {
     s.opts = s.opts || shuffle([kid, ...distractors(kid, 3, all)]);
     body = `
       <div class="photo-wrap"><img class="photo" src="${kid.photo}" alt="Who is this?"></div>
       <div class="choices">${s.opts.map(o => `<button class="choice" data-id="${o.id}">${esc(displayName(o))}</button>`).join('')}</div>`;
-  } else if (s.mode === 'face') {
+  } else if (style === 'face') {
     s.opts = s.opts || shuffle([kid, ...distractors(kid, 3, all)]);
     body = `
       <p class="small muted" style="text-align:center;margin:0">Which one is</p>
@@ -708,7 +863,7 @@ function renderQuestion() {
   app.innerHTML = qHeader() + body + '<div id="fb"></div>';
   wireQuit();
 
-  if (s.mode === 'type') {
+  if (style === 'type') {
     const inp = $('#typeIn');
     inp.focus();
     $('#typeForm').onsubmit = e => { e.preventDefault(); if (inp.value.trim()) answer(typedMatches(inp.value, kid)); };
@@ -720,7 +875,7 @@ function renderQuestion() {
       app.querySelectorAll('[data-id]').forEach(x => {
         if (x.dataset.id === kid.id) x.classList.add('right');
         else if (x === b) x.classList.add('wrong');
-        if (s.mode === 'face') {
+        if (style === 'face') {
           const o = s.opts.find(k => k.id === x.dataset.id);
           x.insertAdjacentHTML('beforeend', `<span class="tag">${esc(displayName(o))}</span>`);
         }
@@ -736,12 +891,13 @@ async function answer(ok) {
   const kid = s.round[s.i];
   if (ok) s.score++; else s.missed.push(kid);
   await record(kid, ok);
-  if (s.mode === 'type') {
+  if ((s.style || s.mode) === 'type') {
     $('#typeIn').disabled = true;
     $('#typeForm button').disabled = true;
     $('#dunno').classList.add('hidden');
   }
   const extra = kid.nick ? ` (${esc(kid.name)})` : '';
+  if (s.mode === 'streak') return streakFeedback(ok, kid, extra);
   $('#fb').innerHTML = `<div class="feedback ${ok ? 'good' : 'bad'}" role="status">
     <span>${ok ? 'Yes! ' : 'That’s '}${esc(displayName(kid))}${extra}${ok ? '' : '.'}</span>
     <button class="btn ${ok ? '' : 'primary'}" id="next">${s.i + 1 < s.round.length ? 'Next' : 'See results'}</button>
@@ -750,8 +906,37 @@ async function answer(ok) {
   next.focus();
   next.onclick = advance;
 }
+function streakFeedback(ok, kid, extra) {
+  const s = session;
+  if (ok && s.target && s.score >= s.target) s.won = true;
+  if (!ok || s.won) s.newBest = saveBest(s.targetKind, s.style, s.score);
+  // Update the streak counter in place so it ticks up right away.
+  const head = app.querySelector('.qbar');
+  if (head) { head.outerHTML = qHeader(); wireQuit(); }
+  const msg = !ok ? `That’s ${esc(displayName(kid))}${extra}. Game over.`
+    : s.won ? `Yes! ${esc(displayName(kid))}. That’s ${s.score} in a row!`
+    : `Yes! ${esc(displayName(kid))}${extra}`;
+  const label = !ok ? 'See score' : s.won ? 'Finish' : 'Next';
+  $('#fb').innerHTML = `<div class="feedback ${ok ? 'good' : 'bad'}" role="status">
+    <span>${msg}</span><button class="btn ${ok && !s.won ? '' : 'primary'}" id="next">${label}</button></div>`;
+  const next = $('#next');
+  next.focus();
+  next.onclick = advance;
+  // Keep the game moving: correct answers roll on by themselves.
+  if (ok && !s.won) s.timer = setTimeout(advance, 900);
+}
 function advance() {
   const s = session;
+  if (!s) return;
+  clearTimeout(s.timer);
+  if (s.mode === 'streak') {
+    s.answered = false; s.opts = null;
+    if (s.won || s.missed.length) s.done = true;
+    else if (++s.i >= s.round.length) dealMore(s);
+    render();
+    window.scrollTo({ top: 0 });
+    return;
+  }
   s.i++; s.answered = false; s.opts = null; s.flipped = false;
   if (s.i >= s.round.length) s.done = true;
   render();
@@ -789,6 +974,34 @@ function renderStudy() {
   }
 }
 
+function renderStreakEnd() {
+  const s = session, miss = s.missed[0];
+  const best = Math.max(s.best, s.score);
+  const title = s.won ? (s.targetKind === 'deck' ? `You named the whole deck!` : `${s.score} in a row. You win!`)
+    : s.score === 0 ? 'Missed the first one' : `${s.score} in a row`;
+  app.innerHTML = `
+    <div class="card" style="text-align:center">
+      ${s.won ? `<div class="trophy">${ICONS.trophy}</div>` : ''}
+      <div class="score-big">${s.score}</div>
+      <p style="font-weight:700;font-size:18px;margin:6px 0 2px">${title}</p>
+      <p class="small muted" style="margin:0">${esc(deckLabel())}${s.target ? ` · goal ${s.target}` : ' · endless'}</p>
+      ${s.newBest && s.score ? '<p class="new-best">New personal best!</p>' : best ? `<p class="small muted" style="margin:8px 0 0">Your best: ${best}</p>` : ''}
+    </div>
+    ${miss ? `
+      <div class="section-title"><h2>The one that got you</h2></div>
+      <div class="card row" style="flex-wrap:nowrap;gap:14px">
+        <img src="${miss.photo}" alt="" style="width:92px;height:92px;object-fit:cover;object-position:center 30%;border-radius:12px;flex:none">
+        <div><b style="font-size:20px">${esc(displayName(miss))}</b>
+          <div class="small muted">${esc([miss.nick ? miss.name : '', miss.grade && miss.grade + ' grade', miss.school].filter(Boolean).join(' · '))}</div></div>
+      </div>` : ''}
+    <div class="stack" style="margin-top:18px">
+      <button class="btn primary block" id="again">Play again</button>
+      <button class="btn block" id="home">Done</button>
+    </div>`;
+  $('#again').onclick = startStreak;
+  $('#home').onclick = () => { session = null; render(); };
+}
+
 function renderResults() {
   const s = session, n = s.round.length;
   const pct = Math.round((s.score / n) * 100);
@@ -812,7 +1025,7 @@ function renderResults() {
 function renderRoster() {
   const q = norm(rosterQuery);
   const list = kids
-    .filter(k => !q || norm(k.name + ' ' + (k.nick || '') + ' ' + (k.group || '')).includes(q))
+    .filter(k => !q || norm([k.name, k.nick, k.group, k.grade, k.school, k.gender].filter(Boolean).join(' ')).includes(q))
     .sort((a, b) => (a.group || '').localeCompare(b.group || '') || a.name.localeCompare(b.name));
   const byGroup = {};
   list.forEach(k => (byGroup[k.group || 'No group'] ||= []).push(k));
@@ -832,7 +1045,7 @@ function renderRoster() {
       <div class="grid">${ks.map(k => `
         <button class="kid" data-id="${k.id}">
           <img src="${k.photo}" alt="" loading="lazy">
-          <div class="meta"><b>${esc(displayName(k))}</b>
+          <div class="meta"><b>${esc(displayName(k))}</b>${k.grade || k.school ? `<small>${esc([k.grade, k.school].filter(Boolean).join(' · '))}</small>` : ''}
             <div class="dots" title="Level ${box(k)} of ${MAX_BOX}">${Array.from({ length: MAX_BOX }, (_, i) => `<i class="${k.seen && i < box(k) ? 'on' : ''}"></i>`).join('')}</div>
           </div>
         </button>`).join('')}</div>`).join('')}
@@ -891,7 +1104,10 @@ function renderShare() {
    Add / edit dialog
    ============================================================ */
 const editDlg = $('#editDlg');
-function fillGroupList() { $('#groupList').innerHTML = groups().map(g => `<option value="${esc(g)}">`).join(''); }
+function fillGroupList() {
+  $('#groupList').innerHTML = valuesFor('group').map(g => `<option value="${esc(g)}">`).join('');
+  $('#schoolList').innerHTML = valuesFor('school').map(g => `<option value="${esc(g)}">`).join('');
+}
 function setEditPhoto(src) {
   editPhoto = src;
   $('#editPhotoImg').classList.toggle('hidden', !src);
@@ -905,7 +1121,10 @@ function openEdit(id) {
   $('#editTitle').textContent = k ? 'Edit student' : 'Add a student';
   $('#editName').value = k ? k.name : '';
   $('#editNick').value = k ? k.nick || '' : '';
-  $('#editGroup').value = k ? k.group || '' : (groupFilter || '');
+  $('#editGroup').value = k ? k.group || '' : (filters.group || '');
+  $('#editGrade').value = k ? k.grade || '' : (filters.grade || '');
+  $('#editSchool').value = k ? k.school || '' : (filters.school || '');
+  $('#editGender').value = k ? k.gender || '' : (filters.gender || '');
   $('#editDelete').classList.toggle('hidden', !k);
   $('#editPhotoInput').value = '';
   setEditPhoto(k ? k.photo : null);
@@ -926,6 +1145,7 @@ $('#editForm').onsubmit = async e => {
   const prev = editingId ? kids.find(x => x.id === editingId) : null;
   const kid = Object.assign({}, prev || { id: uid(), box: 1, seen: 0, right: 0, added: Date.now() }, {
     name, nick: $('#editNick').value.trim(), group: $('#editGroup').value.trim(), photo: editPhoto,
+    grade: $('#editGrade').value, school: $('#editSchool').value.trim(), gender: $('#editGender').value,
   });
   delete kid.sample;
   await store.put(kid);
@@ -958,7 +1178,10 @@ $('#bulkInput').onchange = async e => {
   }
   if (!bulkItems.length) { toast('None of those could be read as photos'); return; }
   fillGroupList();
-  $('#bulkGroup').value = groupFilter || '';
+  $('#bulkGroup').value = filters.group || '';
+  $('#bulkGrade').value = filters.grade || '';
+  $('#bulkSchool').value = filters.school || '';
+  $('#bulkGender').value = filters.gender || '';
   renderBulk();
   bulkDlg.showModal();
 };
@@ -978,10 +1201,11 @@ function renderBulk() {
   if (first) first.focus();
 }
 $('#bulkSave').onclick = async () => {
-  const group = $('#bulkGroup').value.trim();
+  const group = $('#bulkGroup').value.trim(), school = $('#bulkSchool').value.trim();
+  const grade = $('#bulkGrade').value, gender = $('#bulkGender').value;
   const now = Date.now();
   const ready = bulkItems.filter(it => it.name.trim()).map((it, i) => ({
-    id: uid(), name: it.name.trim(), nick: '', group, photo: it.photo, box: 1, seen: 0, right: 0, added: now + i,
+    id: uid(), name: it.name.trim(), nick: '', group, grade, school, gender, photo: it.photo, box: 1, seen: 0, right: 0, added: now + i,
   }));
   if (!ready.length) { toast('Type at least one name'); return; }
   await store.putMany(ready);
@@ -998,7 +1222,7 @@ document.querySelectorAll('dialog [data-close]').forEach(b => b.onclick = () => 
 function exportRoster() {
   const data = {
     app: 'know-their-names', version: 1, exported: new Date().toISOString(),
-    students: kids.filter(k => !k.sample).map(({ name, nick, group, photo }) => ({ name, nick, group, photo })),
+    students: kids.filter(k => !k.sample).map(({ name, nick, group, grade, school, gender, photo }) => ({ name, nick, group, grade, school, gender, photo })),
   };
   if (!data.students.length) { toast('Only sample students so far. Add real ones first.'); return; }
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
@@ -1023,7 +1247,8 @@ $('#importInput').onchange = async e => {
     const out = [];
     list.forEach((s, i) => {
       if (!s || typeof s.name !== 'string' || !s.name.trim() || typeof s.photo !== 'string' || !/^data:image\//.test(s.photo)) return;
-      const clean = { name: s.name.trim().slice(0, 80), nick: String(s.nick || '').trim().slice(0, 40), group: String(s.group || '').trim().slice(0, 40), photo: s.photo };
+      const clean = { name: s.name.trim().slice(0, 80), nick: String(s.nick || '').trim().slice(0, 40), group: String(s.group || '').trim().slice(0, 40), photo: s.photo,
+        grade: GRADES.includes(s.grade) ? s.grade : '', school: String(s.school || '').trim().slice(0, 60), gender: GENDERS.includes(s.gender) ? s.gender : '' };
       const prev = existing.get(key(clean));
       if (prev) { out.push(Object.assign({}, prev, clean)); updated++; }
       else { out.push({ id: uid(), ...clean, box: 1, seen: 0, right: 0, added: now + i }); added++; }
@@ -1056,7 +1281,7 @@ app.addEventListener('click', e => {
 
 async function reload() {
   kids = await store.all();
-  if (groupFilter && !kids.some(k => k.group === groupFilter)) groupFilter = '';
+  FILTERS.forEach(f => { if (filters[f.key] && !kids.some(k => k[f.key] === filters[f.key])) filters[f.key] = ''; });
   render();
 }
 
